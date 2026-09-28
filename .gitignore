@@ -1,0 +1,38 @@
+# Зависимости и сборка
+node_modules/
+out/
+dist/
+release/
+*.tsbuildinfo
+
+# Тесты
+coverage/
+test-results/
+playwright-report/
+
+# Логи
+*.log
+npm-debug.log*
+
+# Аудио не публикуем: в репозитории звуки синтезируются в коде,
+# а свои файлы (например, sounds/custom/*.mp3) у каждого локальные
+*.mp3
+*.wav
+*.ogg
+sounds/custom/
+
+# Окружение и секреты
+.env
+.env.*
+!.env.example
+
+# Редакторы и ОС
+.vscode/*
+!.vscode/extensions.json
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Claude Code: личные локальные настройки
+.claude/settings.local.json
