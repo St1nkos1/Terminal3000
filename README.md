@@ -1,30 +1,32 @@
 # Terminal3000
 
-**Русский** · [English](README.en.md)
+**English** · [Русский](README.ru.md)
 
-Терминал для Windows, в котором удобно держать несколько сессий [Claude Code](https://docs.claude.com/claude-code) и обычные консоли.
+A Windows terminal for keeping several [Claude Code](https://docs.claude.com/claude-code) sessions and regular consoles in one place.
 
-Когда параллельно идут несколько сессий Claude Code, в обычных окнах PowerShell в них легко запутаться. Окна выглядят одинаково, и нужную сессию приходится искать перебором. Claude ждёт разрешения в свёрнутом окне, а вы узнаёте об этом через полчаса. Консоль для `git` и тестов открывается отдельным окном, рядом с сессией её не поставить. После перезагрузки всё собирается заново: зайти в каждую папку, запустить `claude --resume`, найти нужный разговор. Terminal3000 держит все сессии в одном окне, сам сообщает, какая из них ждёт вас, и после перезапуска возвращает вкладки и разговоры на место.
+Running several Claude Code sessions side by side in plain PowerShell windows gets messy fast. The windows all look the same, so you cycle through them to find the right one. Claude sits waiting for permission in a minimized window, and you notice half an hour later. A console for `git` or tests is yet another window that can't sit next to the session. After a reboot you rebuild everything by hand: `cd` into each folder, run `claude --resume`, find the right conversation. Terminal3000 keeps every session in one window, tells you which one needs you, and brings tabs and conversations back after a restart.
 
-![Terminal3000: вкладки нескольких проектов со статусами Claude и консоль проекта под сессией](docs/screenshot.png)
+![Terminal3000: tabs from several projects with Claude statuses and a project console under a session](docs/screenshot.png)
 
-- **Боковая панель** со всеми вкладками, сгруппированными по проекту. Видно, какой Claude работает, какой ждёт ответа или разрешения, какой закончил.
-- **Уведомления и звук**, когда Claude ждёт вас или закончил в вкладке, на которую вы не смотрите. Клик по уведомлению открывает вкладку.
-- **Сплиты**: несколько сессий и консоль проекта на одном экране.
-- **Палитра** (`Ctrl+Shift+P`): вкладки, проекты, прошлые разговоры Claude и команды.
-- **Восстановление**: после перезапуска те же вкладки и сплиты, Claude продолжает те же разговоры через `claude --resume`.
-- Профиль PowerShell с вашими ключами загружается во всех вкладках. Terminal3000 его не читает.
+- **Sidebar** with all tabs grouped by project. You can see which Claude is working, which is waiting for an answer or permission, and which has finished.
+- **Notifications and sound** when Claude is waiting for you or has finished in a tab you aren't looking at. Clicking a notification opens the tab.
+- **Splits**: several sessions and a project console on one screen.
+- **Palette** (`Ctrl+Shift+P`): tabs, projects, past Claude conversations and commands.
+- **Restore**: after a restart you get the same tabs and splits, and Claude continues the same conversations via `claude --resume`.
+- Your PowerShell profile with your keys is loaded in every tab. Terminal3000 never reads it.
 
-## Требования
+The app's interface is in Russian. Below, UI labels are quoted in Russian with an English translation in parentheses.
 
-- Windows 10 или 11 (x64; на arm64 — из исходников);
-- [Node.js](https://nodejs.org) 20.19 или новее (LTS);
+## Requirements
+
+- Windows 10 or 11 (x64; on arm64, build from source);
+- [Node.js](https://nodejs.org) 20.19 or newer (LTS);
 - [Git](https://git-scm.com);
-- [Claude Code](https://docs.claude.com/claude-code), команда `claude` доступна в PowerShell.
+- [Claude Code](https://docs.claude.com/claude-code), with the `claude` command available in PowerShell.
 
-Visual Studio Build Tools не нужны: `node-pty` ставится с готовыми бинарниками.
+Visual Studio Build Tools aren't needed: `node-pty` ships with prebuilt binaries.
 
-## Установка из исходников
+## Installing from source
 
 ```powershell
 git clone https://github.com/St1nkos1/Terminal3000.git
@@ -33,112 +35,112 @@ npm install
 npm start
 ```
 
-`npm start` собирает приложение и запускает его. Для разработки с перезагрузкой — `npm run dev`.
+`npm start` builds the app and launches it. For development with hot reload, use `npm run dev`.
 
-## Сборка установщика
+## Building the installer
 
 ```powershell
 npm run dist
 ```
 
-Установщик появится в `release\Terminal3000 Setup 0.1.0.exe`. Он ставит приложение для текущего пользователя, права администратора не нужны.
+The installer appears at `release\Terminal3000 Setup 0.1.0.exe`. It installs the app for the current user; administrator rights aren't needed.
 
-## Первый запуск и хуки
+## First launch and hooks
 
-Статусы Claude приходят через [хуки Claude Code](https://docs.claude.com/claude-code/hooks). При первом запуске Terminal3000 спрашивает разрешения и добавляет в `%USERPROFILE%\.claude\settings.json` такие записи для событий `SessionStart`, `UserPromptSubmit`, `PostToolUse`, `Notification`, `Stop`, `SessionEnd`:
+Claude statuses come from [Claude Code hooks](https://docs.claude.com/claude-code/hooks). On first launch Terminal3000 asks for permission and adds entries like this to `%USERPROFILE%\.claude\settings.json` for the `SessionStart`, `UserPromptSubmit`, `PostToolUse`, `Notification`, `Stop` and `SessionEnd` events:
 
 ```json
 { "type": "command", "command": "node", "args": ["C:/…/Terminal3000/hooks/t3000-hook.js"], "async": true, "timeout": 5 }
 ```
 
-- Перед изменением рядом сохраняется копия `settings.json.bak-<дата>`. Чужие хуки и остальные настройки не трогаются.
-- Хук асинхронный и никогда не задерживает Claude. Вне Terminal3000 он сразу выходит.
-- Если `node` не найден (установленная сборка на машине без Node), вместо него регистрируется `Terminal3000.exe --t3000-hook`.
-- Если приложение переехало в другую папку, появится баннер «путь к хуку устарел» с кнопкой «Обновить хуки».
-- Удалить хуки: палитра (`Ctrl+Shift+P`) → «Удалить хуки Claude Code». Удаляются только записи, где есть `t3000-hook`.
+- Before any change, a copy `settings.json.bak-<date>` is saved next to the file. Other hooks and settings are left untouched.
+- The hook is asynchronous and never delays Claude. Outside Terminal3000 it exits immediately.
+- If `node` isn't found (an installed build on a machine without Node), `Terminal3000.exe --t3000-hook` is registered instead.
+- If the app has moved to another folder, a banner «путь к хуку устарел» (hook path is outdated) appears with an «Обновить хуки» (Update hooks) button.
+- To remove the hooks: palette (`Ctrl+Shift+P`) → «Удалить хуки Claude Code» (Remove Claude Code hooks). Only entries containing `t3000-hook` are removed.
 
-Сессии Claude, запущенные до установки хуков, начнут присылать статусы после перезапуска.
+Claude sessions started before the hooks were installed begin sending statuses after a restart.
 
-## Клавиши
+## Keys
 
-| Клавиша | Действие |
+| Key | Action |
 |---|---|
-| `Ctrl+Shift+P` | Палитра: вкладки, проекты, прошлые разговоры, команды |
-| `Ctrl+Shift+T` | Новая вкладка: консоль в домашней папке (первый пункт, Enter), папка или проект, затем Claude (новый / продолжить / выбрать разговор) или консоль |
-| `Ctrl+1…9` | N-я вкладка в порядке панели |
-| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Следующая / предыдущая по недавности |
-| `Ctrl+Shift+J` | Следующая вкладка, которая ждёт (потом — которая готова) |
-| ``Ctrl+` `` | Консоль проекта под текущей вкладкой |
-| `Ctrl+Shift+\` / `Ctrl+Shift+-` | Разделить вертикально / горизонтально |
-| `Ctrl+Shift+F` | Поиск по выводу |
-| `F2` | Переименовать вкладку (или двойной клик в панели) |
-| `Ctrl+Shift+W` | Закрыть вкладку (или крестик на строке вкладки и в заголовке панели, или средняя кнопка мыши) |
-| `Ctrl+Shift+M` | «Не беспокоить» до перезапуска |
+| `Ctrl+Shift+P` | Palette: tabs, projects, past conversations, commands |
+| `Ctrl+Shift+T` | New tab: a console in the home folder (first item, Enter), or a folder or project, then Claude (new / continue / pick a conversation) or a console |
+| `Ctrl+1…9` | Nth tab in sidebar order |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous by recency |
+| `Ctrl+Shift+J` | Next tab that is waiting (then one that is done) |
+| ``Ctrl+` `` | Project console under the current tab |
+| `Ctrl+Shift+\` / `Ctrl+Shift+-` | Split vertically / horizontally |
+| `Ctrl+Shift+F` | Search in output |
+| `F2` | Rename tab (or double-click it in the sidebar) |
+| `Ctrl+Shift+W` | Close tab (or the × on the tab row and in the pane header, or the middle mouse button) |
+| `Ctrl+Shift+M` | Do Not Disturb until restart |
 
-Закрытие спрашивает подтверждение, только если Claude во вкладке работает или ждёт ответа. Клавиши работают в любой раскладке. В терминале: `Ctrl+C` с выделением копирует, без выделения прерывает; `Ctrl+V` и правая кнопка вставляют; `Shift+Enter` — перенос строки в поле ввода Claude; файл, брошенный в окно, вставляется путём.
+Closing asks for confirmation only if Claude in the tab is working or waiting for an answer. Shortcuts work in any keyboard layout. In the terminal: `Ctrl+C` copies when there's a selection and interrupts otherwise; `Ctrl+V` and right-click paste; `Shift+Enter` inserts a line break in Claude's input; a file dropped onto the window is pasted as its path.
 
-## Настройка
+## Settings
 
-Настройки лежат в `%APPDATA%\Terminal3000\config.json`. Файл создаётся при первом запуске, открыть его можно командой палитры «Открыть настройки». Изменения подхватываются без перезапуска. Если в файле ошибка, приложение показывает её в баннере и оставляет прежние настройки.
+Settings live in `%APPDATA%\Terminal3000\config.json`. The file is created on first launch; you can open it with the palette command «Открыть настройки» (Open settings). Changes are picked up without a restart. If the file has an error, the app shows it in a banner and keeps the previous settings.
 
-| Ключ | По умолчанию | Что делает |
+| Key | Default | What it does |
 |---|---|---|
-| `defaultShell` | `"powershell"` | Оболочка новой консоли: ключ из `shells` |
-| `shells` | `powershell`, `cmd`, `gitbash` | Свои оболочки: `{ "file": "…", "args": [] }` |
-| `claudeCommand` | `"claude"` | Команда запуска Claude |
-| `projectRoots` | `[]` | Папки, подпапки которых показываются как проекты |
-| `restore` | `"lazy"` | `"lazy"` — неактивные вкладки стартуют при открытии, `"eager"` — сразу |
-| `font` | `Cascadia Mono, Consolas, monospace`, 14 | Шрифт терминала |
-| `scrollback` | `10000` | Строк истории прокрутки |
-| `webgl` | `true` | `false` — рендер без WebGL, если есть артефакты |
-| `status.silenceMs` | `4000` | Через сколько мс тишины «работает» сменяется на «свободна» |
-| `notifications` | всё `true`, `doNotDisturb: false` | `toast`, `flashFrame`, `badge`, `messagePreview` (текст Claude в уведомлении), `doNotDisturb` |
-| `sounds` | `faceit`, `faceit`, `low`, громкость `0.8` | Звуки для `waiting`, `done`, `crashed` и `volume` от 0 до 1 |
-| `keybindings` | таблица выше | Например, `"palette": "Ctrl+K"`; пустая строка отключает сочетание |
+| `defaultShell` | `"powershell"` | Shell for a new console: a key from `shells` |
+| `shells` | `powershell`, `cmd`, `gitbash` | Your own shells: `{ "file": "…", "args": [] }` |
+| `claudeCommand` | `"claude"` | Command that starts Claude |
+| `projectRoots` | `[]` | Folders whose subfolders are shown as projects |
+| `restore` | `"lazy"` | `"lazy"`: inactive tabs start when opened; `"eager"`: all at once |
+| `font` | `Cascadia Mono, Consolas, monospace`, 14 | Terminal font |
+| `scrollback` | `10000` | Lines of scrollback history |
+| `webgl` | `true` | `false` renders without WebGL, if you see artifacts |
+| `status.silenceMs` | `4000` | Milliseconds of silence before "working" turns into "idle" |
+| `notifications` | all `true`, `doNotDisturb: false` | `toast`, `flashFrame`, `badge`, `messagePreview` (Claude's text in the notification), `doNotDisturb` |
+| `sounds` | `faceit`, `faceit`, `low`, volume `0.8` | Sounds for `waiting`, `done`, `crashed`, and `volume` from 0 to 1 |
+| `keybindings` | the table above | For example, `"palette": "Ctrl+K"`; an empty string disables the shortcut |
 
-### Свой звук
+### Custom sound
 
-Значение звука: `builtin:faceit`, `builtin:alert`, `builtin:chime`, `builtin:low`, путь к файлу mp3/wav/ogg или `none`. Относительный путь считается от `%APPDATA%\Terminal3000\`:
+A sound value is `builtin:faceit`, `builtin:alert`, `builtin:chime`, `builtin:low`, a path to an mp3/wav/ogg file, or `none`. A relative path is resolved from `%APPDATA%\Terminal3000\`:
 
 ```json
 "sounds": { "volume": 0.6, "waiting": "sounds/custom/ding.mp3", "done": "builtin:chime", "crashed": "none" }
 ```
 
-Если файл не найден, играет `builtin:alert`.
+If the file isn't found, `builtin:alert` plays.
 
-## Звук FACEIT
+## FACEIT sound
 
-Звук `assets/sounds/faceit-accept.mp3` (FACEIT match accept) — собственность FACEIT. Он используется как фан-контент, лицензия MIT на него не распространяется. Файл будет удалён по первому запросу правообладателя; без него `builtin:faceit` играет `builtin:alert`.
+The sound `assets/sounds/faceit-accept.mp3` (FACEIT match accept) is the property of FACEIT. It is used as fan content, and the MIT license doesn't cover it. The file will be removed at the rights holder's first request; without it, `builtin:faceit` plays `builtin:alert`.
 
-## Частые проблемы
+## Troubleshooting
 
-- **Уведомления подписаны «Electron».** Так бывает при запуске из исходников (`npm start`). В установленной сборке они подписаны «Terminal3000».
-- **Нет статусов Claude, вкладка «без статусов».** Не установлены хуки, или сессия Claude запущена до их установки. Палитра → «Установить хуки Claude Code», затем перезапустить Claude.
-- **Профиль PowerShell не загружается, ошибка про политику выполнения.** Разрешить свои скрипты: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
-- **Артефакты отрисовки.** Поставить `"webgl": false` в `config.json`.
-- **`npm install` ругается на install-скрипты.** npm 11 запускает их только для пакетов из `allowScripts` в `package.json`. Если npm перечислил новый пакет, выполнить `npm approve-scripts` и повторить установку.
+- **Notifications are signed "Electron".** This happens when running from source (`npm start`). In the installed build they're signed "Terminal3000".
+- **No Claude statuses, the tab says «без статусов» (no statuses).** The hooks aren't installed, or the Claude session was started before they were. Palette → «Установить хуки Claude Code» (Install Claude Code hooks), then restart Claude.
+- **The PowerShell profile doesn't load, execution policy error.** Allow your own scripts: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+- **Rendering artifacts.** Set `"webgl": false` in `config.json`.
+- **`npm install` complains about install scripts.** npm 11 runs them only for packages listed in `allowScripts` in `package.json`. If npm names a new package, run `npm approve-scripts` and install again.
 
-## Что хранится на диске
+## What's stored on disk
 
-`%APPDATA%\Terminal3000\` содержит `config.json`, `workspace.json` (папки, типы и названия вкладок, id разговоров Claude, раскладку) и `logs\main.log` (только события приложения). Вывод терминалов, переменные окружения и тексты Claude на диск не пишутся никогда.
+`%APPDATA%\Terminal3000\` contains `config.json`, `workspace.json` (tab folders, types and names, Claude conversation ids, layout) and `logs\main.log` (app events only). Terminal output, environment variables and Claude's text are never written to disk.
 
-## Удаление
+## Uninstalling
 
-1. Палитра → «Удалить хуки Claude Code».
-2. Удалить приложение через «Параметры → Приложения» (или папку с исходниками).
-3. При желании удалить `%APPDATA%\Terminal3000\`.
+1. Palette → «Удалить хуки Claude Code» (Remove Claude Code hooks).
+2. Uninstall the app in Settings → Apps (or delete the source folder).
+3. Optionally, delete `%APPDATA%\Terminal3000\`.
 
-## Разработка
+## Development
 
 ```powershell
-npm run dev        # запуск с перезагрузкой
-npm test           # unit и интеграционные тесты
-npm run test:e2e   # сборка и e2e-тесты (Playwright + Electron)
+npm run dev        # run with hot reload
+npm test           # unit and integration tests
+npm run test:e2e   # build and run e2e tests (Playwright + Electron)
 npm run lint
 npm run typecheck
-npm run icon       # перерисовать build/icon.ico
+npm run icon       # redraw build/icon.ico
 ```
 
-## Лицензия
+## License
 
-Код — [MIT](LICENSE), © 2026 St1nkos1. На `assets/sounds/faceit-accept.mp3` лицензия не распространяется (см. «Звук FACEIT»).
+Code is [MIT](LICENSE), © 2026 St1nkos1. The license doesn't cover `assets/sounds/faceit-accept.mp3` (see [FACEIT sound](#faceit-sound)).

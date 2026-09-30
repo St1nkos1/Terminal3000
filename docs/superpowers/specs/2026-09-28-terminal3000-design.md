@@ -396,7 +396,7 @@ Terminal3000/
 ├─ assets/sounds/  faceit-accept.mp3 (© FACEIT, не под MIT — см. ниже)
 ├─ build/          icon.ico (рисует scripts/make-icon.mjs)
 ├─ docs/           superpowers/specs/, superpowers/plans/, manual-checklist.md
-├─ README.md  README.en.md  LICENSE (MIT, St1nkos1, 2026)  .gitignore  .gitattributes
+├─ README.md  README.ru.md  LICENSE (MIT, St1nkos1, 2026)  .gitignore  .gitattributes
 └─ package.json  electron.vite.config.ts  electron-builder.yml  tsconfig*.json
 ```
 
@@ -404,7 +404,7 @@ Terminal3000/
 - **`electron-builder`:** `npmRebuild: false`, потому что `node-pty` уже содержит N-API бинарники. `hooks/`, `assets/sounds/` и бинарники `node-pty` копируются в `resources` без упаковки в asar.
 - **`LICENSE`:** MIT на код. В конце файла отдельная оговорка: `assets/sounds/faceit-accept.mp3` не является частью проекта по MIT и принадлежит правообладателю.
 - **Риск звука (принят автором):** правообладатель может прислать GitHub жалобу DMCA, и репозиторий временно закроют. Тогда файл удаляется из репозитория и истории, а `builtin:faceit` при отсутствии файла откатывается на `builtin:alert`, так что код от этого не ломается.
-- **README на русском (`README.md`) и английском (`README.en.md`):** содержание одинаковое, под заголовком переключатель языка ссылками. Интерфейс приложения только на русском, поэтому в английской версии названия команд и баннеров даны по-русски с переводом в скобках.
+- **README на английском (`README.md`, основной) и русском (`README.ru.md`):** содержание одинаковое, под заголовком переключатель языка ссылками. Интерфейс приложения только на русском, поэтому в английской версии названия команд и баннеров даны по-русски с переводом в скобках.
   - что это, какую проблему решает (абзац) и скриншот;
   - требования: Windows 10/11, Node.js 20+ LTS, Git, Claude Code;
   - установка из исходников (`git clone` → `npm install` → `npm start`) и сборка установщика (`npm run dist`);
