@@ -32,7 +32,7 @@ describe('parseFolderArg', () => {
 
 describe('isSafeExternalUrl', () => {
   it('только http и https', () => {
-    expect(isSafeExternalUrl('https://github.com/st1nkos')).toBe(true)
+    expect(isSafeExternalUrl('https://github.com/St1nkos1')).toBe(true)
     expect(isSafeExternalUrl('http://localhost:3000')).toBe(true)
     for (const bad of ['file:///C:/Windows/System32/calc.exe', 'javascript:alert(1)', 'ms-settings:', 'not a url']) {
       expect(isSafeExternalUrl(bad), bad).toBe(false)

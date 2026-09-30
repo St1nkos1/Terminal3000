@@ -23,7 +23,7 @@ Visual Studio Build Tools не нужны: `node-pty` ставится с гот
 ## Установка из исходников
 
 ```powershell
-git clone https://github.com/st1nkos/Terminal3000.git
+git clone https://github.com/St1nkos1/Terminal3000.git
 cd Terminal3000
 npm install
 npm start
@@ -137,4 +137,4 @@ npm run icon       # перерисовать build/icon.ico
 
 ## Лицензия
 
-Код — [MIT](LICENSE), © 2026 st1nkos. На `assets/sounds/faceit-accept.mp3` лицензия не распространяется (см. «Звук FACEIT»).
+Код — [MIT](LICENSE), © 2026 St1nkos1. На `assets/sounds/faceit-accept.mp3` лицензия не распространяется (см. «Звук FACEIT»).

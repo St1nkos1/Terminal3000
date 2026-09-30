@@ -76,7 +76,7 @@ function main(): void {
     app.quit()
     return
   }
-  app.setAppUserModelId(app.isPackaged ? 'com.st1nkos.terminal3000' : process.execPath)
+  app.setAppUserModelId(app.isPackaged ? 'com.st1nkos1.terminal3000' : process.execPath)
   // без меню: иначе Ctrl+R у Claude перезагрузит окно
   Menu.setApplicationMenu(null)
   void app

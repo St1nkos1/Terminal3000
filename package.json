@@ -3,7 +3,7 @@
   "productName": "Terminal3000",
   "version": "0.1.0",
   "description": "Терминал для Windows, в котором удобно держать несколько сессий Claude Code",
-  "author": "st1nkos",
+  "author": "St1nkos1",
   "license": "MIT",
   "private": true,
   "main": "./out/main/index.js",

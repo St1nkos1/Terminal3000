@@ -1,6 +1,6 @@
-appId: com.st1nkos.terminal3000
+appId: com.st1nkos1.terminal3000
 productName: Terminal3000
-copyright: Copyright © 2026 st1nkos
+copyright: Copyright © 2026 St1nkos1
 directories:
   output: release
   buildResources: build

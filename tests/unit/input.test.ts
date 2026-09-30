@@ -7,8 +7,8 @@ describe('ссылки OSC 8 (gh, ls --hyperlink)', () => {
     let prevented = false
     const handler = osc8LinkHandler((uri) => opened.push(uri))
     const event = { preventDefault: () => (prevented = true) } as unknown as MouseEvent
-    handler.activate(event, 'https://github.com/st1nkos/Terminal3000')
-    expect(opened).toEqual(['https://github.com/st1nkos/Terminal3000'])
+    handler.activate(event, 'https://github.com/St1nkos1/Terminal3000')
+    expect(opened).toEqual(['https://github.com/St1nkos1/Terminal3000'])
     expect(prevented).toBe(true)
     // file:// и прочие схемы xterm даже не активирует
     expect(handler.allowNonHttpProtocols).toBe(false)
