@@ -224,6 +224,22 @@ describe('SessionStore', () => {
     expect(store.records()[0].shell).toBe('pwsh')
   })
 
+  it('вложенный claude в живой вкладке: ни папки, ни уведомления, ни смены разговора', () => {
+    const { store, alerts, hook, start, status } = setup()
+    start()
+    store.hook(hook({ event: 'SessionStart', source: 'startup', sessionId: 'sess-1' }))
+    store.hook(hook({ event: 'UserPromptSubmit', sessionId: 'sess-1' }))
+    expect(status()).toBe('working')
+    // claude -p из Bash-инструмента или из хука пользователя получает T3000_TAB_ID этой вкладки
+    store.hook(hook({ event: 'SessionStart', source: 'startup', sessionId: 'nested', cwd: 'C:\\tmp' }))
+    store.hook(hook({ event: 'Stop', sessionId: 'nested', lastAssistantMessage: 'x' }))
+    store.hook(hook({ event: 'SessionEnd', sessionId: 'nested', reason: 'other' }))
+    expect(status()).toBe('working')
+    expect(store.get('t1')?.cwd).toBe('C:\\work\\MyWebShop')
+    expect(store.records()[0]).toMatchObject({ kind: 'claude', claudeSessionId: 'sess-1' })
+    expect(alerts).toEqual([])
+  })
+
   it('SessionStart главной сессии обновляет папку вкладки', () => {
     const { store, hook, start, tick } = setup()
     start()
@@ -260,7 +276,7 @@ describe('SessionStore', () => {
     tick(10)
     store.hook(hook({ event: 'PostToolUse' }))
     expect(changes).toHaveLength(3)
-    store.hook(hook({ event: 'PostToolUse', sessionId: 'sess-9' }))
+    store.hook(hook({ event: 'SessionStart', source: 'clear', sessionId: 'sess-9' }))
     expect(changes.at(-1)).toBe(true)
     store.rename('t1', 'Имя')
     expect(changes.at(-1)).toBe(true)

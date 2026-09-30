@@ -1,6 +1,6 @@
 import { cwdKey, folderName, truncate } from '../shared/text'
 import type { AlertKind, HookEvent, TabInfo, TabNote, TabRecord, TabStatus } from '../shared/types'
-import { initialState, isUserInput, step, type MachineEvent, type MachineState } from './status-machine'
+import { initialState, isForeignSession, isUserInput, step, type MachineEvent, type MachineState } from './status-machine'
 
 export type InputRoute = 'write' | 'drop' | 'restart' | 'new-conversation'
 
@@ -138,7 +138,7 @@ export class SessionStore {
     const t = this.tabs.get(ev.tab)
     if (!t) return false
     // по папке запуска claude потом работает --resume
-    const fresh = ev.event === 'SessionStart' && !ev.isAgent && ev.ts >= t.m.lastTs
+    const fresh = ev.event === 'SessionStart' && !ev.isAgent && ev.ts >= t.m.lastTs && !isForeignSession(t.m, ev)
     if (fresh && ev.cwd && cwdKey(ev.cwd) !== cwdKey(t.base.cwd)) this.setCwd(ev.tab, ev.cwd)
     this.advance(t, { type: 'hook', hook: ev, visible: this.deps.isVisible(ev.tab) })
     return true

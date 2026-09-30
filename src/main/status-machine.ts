@@ -60,8 +60,19 @@ export function step(s: MachineState, e: MachineEvent, now: number): MachineStat
   }
 }
 
+const LIVE = new Set<TabStatus>(['idle', 'working', 'waiting', 'done'])
+
+// Живая Claude-вкладка привязана к своему разговору. Хуки другой сессии шлёт вложенный claude
+// (claude -p из Bash-инструмента или из хука пользователя): он получил T3000_TAB_ID этой вкладки.
+// Сменить разговор во вкладке можно только через /clear или /resume.
+export function isForeignSession(s: MachineState, h: HookEvent): boolean {
+  if (s.kind !== 'claude' || !LIVE.has(s.status) || !s.claudeSessionId || !h.sessionId) return false
+  if (h.sessionId === s.claudeSessionId) return false
+  return !(h.event === 'SessionStart' && (h.source === 'clear' || h.source === 'resume'))
+}
+
 function onHook(s: MachineState, h: HookEvent, visible: boolean, now: number): MachineState {
-  if (h.ts < s.lastTs) return s
+  if (h.ts < s.lastTs || isForeignSession(s, h)) return s
   const next: Partial<MachineState> = { lastTs: h.ts }
   if (!h.isAgent) {
     next.kind = 'claude'

@@ -187,3 +187,37 @@ describe('isUserInput', () => {
     }
   })
 })
+
+describe('step: вложенный claude в живой вкладке', () => {
+  it('хуки чужой сессии не меняют живую Claude-вкладку', () => {
+    for (const status of ['idle', 'working', 'waiting', 'done'] as const) {
+      const s = claudeAt(status)
+      for (const ev of ['SessionStart', 'UserPromptSubmit', 'PostToolUse', 'Stop', 'SessionEnd']) {
+        expect(h(s, hook(ev, { sessionId: 'nested', source: 'startup' })), `${status} ${ev}`).toBe(s)
+      }
+      expect(h(s, hook('Notification', { sessionId: 'nested', notificationType: 'permission_prompt' }))).toBe(s)
+    }
+  })
+
+  it('/clear и /resume переключают вкладку на новый разговор', () => {
+    expect(h(claudeAt('working'), hook('SessionStart', { sessionId: 'n2', source: 'clear' }))).toMatchObject({
+      status: 'idle',
+      claudeSessionId: 'n2'
+    })
+    expect(h(claudeAt('idle'), hook('SessionStart', { sessionId: 'n3', source: 'resume' }))).toMatchObject({
+      status: 'idle',
+      claudeSessionId: 'n3'
+    })
+  })
+
+  it('консоль, запуск и упавший claude принимают новую сессию', () => {
+    const shell: MachineState = { ...claudeAt('shell'), kind: 'shell' }
+    for (const s of [shell, claudeAt('starting'), claudeAt('crashed')]) {
+      expect(h(s, hook('SessionStart', { sessionId: 'n4', source: 'startup' }))).toMatchObject({
+        kind: 'claude',
+        status: 'idle',
+        claudeSessionId: 'n4'
+      })
+    }
+  })
+})
