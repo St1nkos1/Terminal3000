@@ -1,24 +1,71 @@
+import { useEffect } from 'react'
 import { useApp } from '../context'
+import { matchAction } from '../keybindings'
 import { useStore } from '../store'
+import { ConfirmClose, RenameDialog } from './Dialog'
+import { Palette } from './Palette'
 import { PaneTree } from './PaneTree'
 import { Sidebar } from './Sidebar'
 
 const ROOT_PATH: number[] = []
 
 export function App() {
-  const { store } = useApp()
+  const { store, actions } = useApp()
   const layout = useStore(store, (s) => s.view.layout)
+  const overlay = useStore(store, (s) => s.overlay)
+  const keymapErrors = useStore(store, (s) => s.keymapErrors)
   const newTabKey = useStore(store, (s) => s.config.keybindings.newTab)
+
+  // Сочетания приложения перехватываются в capture на window: раньше xterm и полей ввода
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      const id = matchAction(store.get().keymap, e)
+      if (!id) return
+      e.preventDefault()
+      e.stopPropagation()
+      // зажатая клавиша повторяет только переключение вкладок
+      if (e.repeat && id !== 'nextTab' && id !== 'prevTab') return
+      actions.run(id)
+    }
+    const up = (e: KeyboardEvent) => {
+      if (e.key === 'Control') actions.endCycle()
+    }
+    const blur = () => actions.endCycle()
+    window.addEventListener('keydown', down, true)
+    window.addEventListener('keyup', up, true)
+    window.addEventListener('blur', blur)
+    return () => {
+      window.removeEventListener('keydown', down, true)
+      window.removeEventListener('keyup', up, true)
+      window.removeEventListener('blur', blur)
+    }
+  }, [store, actions])
+
   return (
     <div className="app">
       <Sidebar />
-      <main className="main">
-        {layout ? (
-          <PaneTree node={layout} path={ROOT_PATH} />
-        ) : (
-          <div className="empty">Вкладок нет.{newTabKey ? ` ${newTabKey} — новая вкладка` : ''}</div>
-        )}
-      </main>
+      <div className="content">
+        <div className="banners">
+          {keymapErrors.length > 0 && (
+            <div className="banner banner-warn">
+              <span className="banner-text">
+                Ошибки в клавишах: {keymapErrors[0]}
+                {keymapErrors.length > 1 ? ` (и ещё ${keymapErrors.length - 1})` : ''}
+              </span>
+            </div>
+          )}
+        </div>
+        <main className="main">
+          {layout ? (
+            <PaneTree node={layout} path={ROOT_PATH} />
+          ) : (
+            <div className="empty">Вкладок нет.{newTabKey ? ` ${newTabKey} — новая вкладка` : ''}</div>
+          )}
+        </main>
+      </div>
+      {overlay?.type === 'palette' && <Palette overlay={overlay} />}
+      {overlay?.type === 'rename' && <RenameDialog tab={overlay.tab} />}
+      {overlay?.type === 'confirm-close' && <ConfirmClose tab={overlay.tab} />}
     </div>
   )
 }

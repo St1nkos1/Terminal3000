@@ -1,5 +1,13 @@
 import { useSyncExternalStore } from 'react'
-import type { AppConfig, AppState, InitData, ViewState } from '../shared/types'
+import type { ActionId, AppConfig, AppState, InitData, ViewState } from '../shared/types'
+import { buildKeymap } from './keybindings'
+import type { PaletteMode } from './palette-pages'
+import type { MruCycle } from './tab-order'
+
+export type Overlay =
+  | { type: 'palette'; mode: PaletteMode; back: PaletteMode[] }
+  | { type: 'rename'; tab: string }
+  | { type: 'confirm-close'; tab: string }
 
 export interface UiState {
   app: AppState
@@ -8,8 +16,15 @@ export interface UiState {
   osBuild: number
   // последние использованные вкладки, текущая первой
   mru: string[]
+  // Ctrl+Tab, пока зажат Ctrl
+  mruCycle: MruCycle | null
   // часы для «работает 14с», тикают раз в секунду
   now: number
+  overlay: Overlay | null
+  // вкладка с открытой строкой поиска
+  search: string | null
+  keymap: Map<string, ActionId>
+  keymapErrors: string[]
 }
 
 export interface Store<T> {
@@ -42,12 +57,18 @@ export function useStore<T, R>(store: Store<T>, select: (s: T) => R): R {
 }
 
 export function initialUiState(init: InitData, now: number): UiState {
+  const { map, errors } = buildKeymap(init.config.keybindings)
   return {
     app: init.state,
     config: init.config,
     view: init.view,
     osBuild: init.osBuild,
     mru: init.view.activeTab ? [init.view.activeTab] : [],
-    now
+    mruCycle: null,
+    now,
+    overlay: null,
+    search: null,
+    keymap: map,
+    keymapErrors: errors
   }
 }

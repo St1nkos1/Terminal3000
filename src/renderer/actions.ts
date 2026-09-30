@@ -1,9 +1,11 @@
 import type { T3000Api } from '../shared/ipc'
-import { layoutTabs, setSizes } from '../shared/layout'
-import type { AppConfig, AppState, NewTabRequest, SplitDir, ViewState } from '../shared/types'
+import { layoutTabs, removeTab, setSizes } from '../shared/layout'
+import type { ActionId, AppConfig, AppState, NewTabRequest, SplitDir, ViewState } from '../shared/types'
 import { fixView, placeTab, showTab } from '../shared/view'
+import { buildKeymap } from './keybindings'
+import type { PaletteCommand, PaletteMode } from './palette-pages'
 import type { Store, UiState } from './store'
-import { touchMru } from './tab-order'
+import { consoleStep, mruStep, nextAttention, panelOrder, touchMru } from './tab-order'
 
 export interface ViewsControl {
   focus(tab: string): void
@@ -19,7 +21,7 @@ export interface ActionDeps {
   pageVisible(): boolean
 }
 
-function sameView(a: ViewState, b: ViewState): boolean {
+function same(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
 }
 
@@ -31,7 +33,7 @@ export function createActions(d: ActionDeps) {
     const s = store.get()
     const fixed = fixView(next, s.app.tabs.map((t) => t.id))
     const view = { ...fixed, visibleTabs: d.pageVisible() ? layoutTabs(fixed.layout) : [] }
-    if (sameView(view, s.view)) return
+    if (same(view, s.view)) return
     store.set({ view })
     api.updateView(view)
   }
@@ -61,14 +63,19 @@ export function createActions(d: ActionDeps) {
 
   function onState(app: AppState): void {
     const known = new Set(app.tabs.map((t) => t.id))
-    store.set({ app, mru: store.get().mru.filter((t) => known.has(t)) })
+    const s = store.get()
+    // диалог и строка поиска закрытой вкладки больше не нужны
+    const overlay = s.overlay && s.overlay.type !== 'palette' && !known.has(s.overlay.tab) ? null : s.overlay
+    const search = s.search && known.has(s.search) ? s.search : null
+    store.set({ app, mru: s.mru.filter((t) => known.has(t)), overlay, search })
     views.prune(known)
     // закрытую вкладку убираем из раскладки
     refreshView()
   }
 
   function onConfig(config: AppConfig): void {
-    store.set({ config })
+    const { map, errors } = buildKeymap(config.keybindings)
+    store.set({ config, keymap: map, keymapErrors: errors })
     views.applyConfig(config)
   }
 
@@ -99,6 +106,186 @@ export function createActions(d: ActionDeps) {
     if (cwd) api.setTabCwd(tab, cwd)
   }
 
+  // Палитра и диалоги
+
+  function closeOverlay(): void {
+    store.set({ overlay: null })
+    const active = store.get().view.activeTab
+    if (active) views.focus(active)
+  }
+
+  function openPalette(mode: PaletteMode = { page: 'root' }): void {
+    const o = store.get().overlay
+    // повторное нажатие того же сочетания закрывает палитру
+    if (o?.type === 'palette' && o.back.length === 0 && same(o.mode, mode)) {
+      closeOverlay()
+      return
+    }
+    store.set({ overlay: { type: 'palette', mode, back: [] } })
+  }
+
+  function palettePage(mode: PaletteMode): void {
+    const o = store.get().overlay
+    const back = o?.type === 'palette' ? [...o.back, o.mode] : []
+    store.set({ overlay: { type: 'palette', mode, back } })
+  }
+
+  function paletteBack(): boolean {
+    const o = store.get().overlay
+    if (o?.type !== 'palette' || o.back.length === 0) return false
+    store.set({ overlay: { type: 'palette', mode: o.back[o.back.length - 1], back: o.back.slice(0, -1) } })
+    return true
+  }
+
+  async function runCommand(c: PaletteCommand): Promise<void> {
+    switch (c.type) {
+      case 'show-tab':
+        closeOverlay()
+        activate(c.tab)
+        return
+      case 'page':
+        palettePage(c.mode)
+        return
+      case 'open':
+        closeOverlay()
+        await openTab(c.req, c.split)
+        return
+      case 'pick-folder': {
+        const cwd = await api.pickFolder()
+        if (cwd) palettePage({ page: 'project', cwd, ...(c.split ? { split: c.split } : {}) })
+        return
+      }
+      case 'split-with':
+        closeOverlay()
+        place(c.tab, c.dir)
+        return
+      case 'set-shell':
+        closeOverlay()
+        api.startTab(c.tab, c.shell)
+        return
+      case 'action':
+        closeOverlay()
+        run(c.id)
+        return
+      case 'open-config':
+        closeOverlay()
+        api.openConfig()
+        return
+      case 'toggle-sidebar':
+        closeOverlay()
+        toggleSidebar()
+        return
+    }
+  }
+
+  function startRename(tab: string): void {
+    store.set({ overlay: { type: 'rename', tab } })
+  }
+
+  function renameTab(tab: string, title: string): void {
+    api.renameTab(tab, title.trim())
+    closeOverlay()
+  }
+
+  function requestClose(tab: string): void {
+    const info = store.get().app.tabs.find((t) => t.id === tab)
+    if (!info) return
+    if (info.alive) store.set({ overlay: { type: 'confirm-close', tab } })
+    else closeTab(tab)
+  }
+
+  function confirmClose(tab: string): void {
+    store.set({ overlay: null })
+    closeTab(tab)
+  }
+
+  function closeSearch(): void {
+    const tab = store.get().search
+    store.set({ search: null })
+    if (tab) views.focus(tab)
+  }
+
+  // Ctrl+Tab / Ctrl+Shift+Tab: MRU не меняется, пока зажат Ctrl
+  function cycle(dir: 1 | -1): void {
+    const s = store.get()
+    const r = mruStep(s.mru, s.mruCycle, dir)
+    if (!r) return
+    store.set({ mruCycle: r.cycle })
+    activate(r.tab, { mru: false })
+  }
+
+  function endCycle(): void {
+    const s = store.get()
+    if (!s.mruCycle) return
+    const active = s.view.activeTab
+    store.set({ mruCycle: null, mru: active ? touchMru(s.mru, active) : s.mru })
+  }
+
+  async function toggleConsole(): Promise<void> {
+    const s = store.get()
+    const step = consoleStep(s.app.tabs, s.view.layout, s.view.activeTab)
+    if (!step) return
+    if (step.type === 'hide') {
+      setView({ ...s.view, layout: removeTab(s.view.layout, step.tab), activeTab: step.back })
+      views.focus(step.back)
+    } else if (step.type === 'show') {
+      place(step.tab, 'column')
+    } else {
+      await openTab({ cwd: step.cwd, kind: 'shell' }, 'column')
+    }
+  }
+
+  function run(id: ActionId): void {
+    const s = store.get()
+    const active = s.view.activeTab
+    switch (id) {
+      case 'palette':
+        openPalette()
+        return
+      case 'newTab':
+        openPalette({ page: 'new-tab' })
+        return
+      case 'nextTab':
+        cycle(1)
+        return
+      case 'prevTab':
+        cycle(-1)
+        return
+      case 'nextAttention': {
+        const tab = nextAttention(s.app.tabs, active)
+        if (tab) activate(tab)
+        return
+      }
+      case 'toggleConsole':
+        void toggleConsole()
+        return
+      case 'splitVertical':
+        if (active) openPalette({ page: 'split', dir: 'row' })
+        return
+      case 'splitHorizontal':
+        if (active) openPalette({ page: 'split', dir: 'column' })
+        return
+      case 'search':
+        if (active && s.search === active) closeSearch()
+        else if (active) store.set({ search: active })
+        return
+      case 'rename':
+        if (active) startRename(active)
+        return
+      case 'closeTab':
+        if (active) requestClose(active)
+        return
+      case 'doNotDisturb':
+        api.toggleDoNotDisturb()
+        return
+      default: {
+        // goToTab1…goToTab9
+        const tab = panelOrder(s.app.tabs)[Number(id.slice('goToTab'.length)) - 1]
+        if (tab) activate(tab)
+      }
+    }
+  }
+
   return {
     setView,
     refreshView,
@@ -111,7 +298,19 @@ export function createActions(d: ActionDeps) {
     toggleSidebar,
     toggleGroup,
     resizeSplit,
-    pickFolderFor
+    pickFolderFor,
+    run,
+    runCommand,
+    openPalette,
+    paletteBack,
+    closeOverlay,
+    startRename,
+    renameTab,
+    requestClose,
+    confirmClose,
+    closeSearch,
+    endCycle,
+    toggleConsole
   }
 }
 

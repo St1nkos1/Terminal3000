@@ -285,3 +285,193 @@ button {
   margin: auto;
   color: var(--muted);
 }
+
+/* Колонка справа от панели: баннеры над сплитами */
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.banner-text {
+  flex: 1;
+}
+
+.banner-info {
+  background: #1f3347;
+}
+
+.banner-warn {
+  background: #3d3419;
+}
+
+.banner-error {
+  background: #3b2a2a;
+}
+
+.new-tab {
+  display: flex;
+  justify-content: space-between;
+  margin: 6px 8px 8px;
+  padding: 6px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+}
+
+.new-tab:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.hint,
+.palette-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Палитра и диалоги */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.palette {
+  width: min(680px, 90vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.palette-input,
+.dialog input,
+.search-bar input {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  outline: none;
+  padding: 6px 8px;
+}
+
+.palette-input {
+  margin: 8px;
+  font-size: 14px;
+}
+
+.palette-input:focus,
+.dialog input:focus,
+.search-bar input:focus {
+  border-color: var(--accent);
+}
+
+.palette-list {
+  overflow-y: auto;
+  padding-bottom: 6px;
+}
+
+.palette-item {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+
+.palette-item.current {
+  background: #04395e;
+}
+
+.palette-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.palette-detail {
+  flex: 1;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.palette-empty {
+  padding: 8px 14px;
+  color: var(--muted);
+}
+
+.dialog {
+  width: min(460px, 90vw);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+
+.dialog p {
+  margin: 0;
+}
+
+.dialog-title {
+  font-weight: 600;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn.primary {
+  border-color: var(--accent);
+}
+
+.btn.danger {
+  border-color: var(--st-red);
+}
+
+/* Поиск по выводу */
+.search-bar {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.search-bar input {
+  flex: 1;
+  padding: 2px 6px;
+}
+
+.search-bar input.miss {
+  border-color: var(--st-red);
+}

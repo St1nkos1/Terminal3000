@@ -15,6 +15,7 @@ function TabRow({ tab, active, shown, now }: { tab: TabInfo; active: boolean; sh
       className={`tab-row status-${tab.status}${active ? ' active' : ''}${shown ? ' shown' : ''}`}
       title={paneTitle(tab)}
       onClick={() => actions.activate(tab.id)}
+      onDoubleClick={() => actions.startRename(tab.id)}
     >
       <span className="icon">{STATUS_ICON[tab.status]}</span>
       <span className="label">{tabLabel(tab)}</span>
@@ -33,6 +34,7 @@ export function Sidebar() {
   const activeTab = useStore(store, (s) => s.view.activeTab)
   const layout = useStore(store, (s) => s.view.layout)
   const now = useStore(store, (s) => s.now)
+  const newTabKey = useStore(store, (s) => s.config.keybindings.newTab)
   const groups = useMemo(() => groupTabs(tabs), [tabs])
   const shown = useMemo(() => new Set(layoutTabs(layout)), [layout])
 
@@ -54,6 +56,9 @@ export function Sidebar() {
             </button>
           ))
         )}
+        <button className="mini" title={`Новая вкладка ${newTabKey}`} onClick={() => actions.run('newTab')}>
+          +
+        </button>
       </nav>
     )
   }
@@ -82,6 +87,10 @@ export function Sidebar() {
           )
         })}
       </div>
+      <button className="new-tab" onClick={() => actions.run('newTab')}>
+        <span>+ Новая вкладка</span>
+        <span className="hint">{newTabKey}</span>
+      </button>
     </nav>
   )
 }

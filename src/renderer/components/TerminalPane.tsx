@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { TabNote } from '../../shared/types'
 import { useApp } from '../context'
 import { useStore } from '../store'
+import { SearchBar } from './SearchBar'
 import { formatDuration, paneTitle, showsDuration, STATUS_ICON, STATUS_LABEL } from '../tab-order'
 
 function NoteBar({ tab, note }: { tab: string; note: TabNote }) {
@@ -12,6 +13,11 @@ function NoteBar({ tab, note }: { tab: string; note: TabNote }) {
       {note.actions.includes('pick-folder') && (
         <button className="btn" onClick={() => void actions.pickFolderFor(tab)}>
           Выбрать папку
+        </button>
+      )}
+      {note.actions.includes('pick-shell') && (
+        <button className="btn" onClick={() => actions.openPalette({ page: 'shell', tab })}>
+          Другая оболочка
         </button>
       )}
       {note.actions.includes('close') && (
@@ -28,6 +34,7 @@ export function TerminalPane({ tab }: { tab: string }) {
   const info = useStore(store, (s) => s.app.tabs.find((t) => t.id === tab))
   const active = useStore(store, (s) => s.view.activeTab === tab)
   const now = useStore(store, (s) => s.now)
+  const searching = useStore(store, (s) => s.search === tab)
   const host = useRef<HTMLDivElement>(null)
 
   // элемент терминала переносится в эту панель и уносится при размонтировании, сам терминал живёт дальше
@@ -54,6 +61,7 @@ export function TerminalPane({ tab }: { tab: string }) {
         </div>
       )}
       {info?.note && <NoteBar tab={tab} note={info.note} />}
+      {searching && <SearchBar tab={tab} />}
       <div className="pane-body" ref={host} />
     </div>
   )
