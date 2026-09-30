@@ -6,7 +6,7 @@ import { WebglAddon } from '@xterm/addon-webgl'
 import { Terminal, type ITheme } from '@xterm/xterm'
 import type { T3000Api } from '../shared/ipc'
 import type { AppConfig } from '../shared/types'
-import { clipboardInput, quotePaths, terminalKeyAction } from './input'
+import { clipboardInput, osc8LinkHandler, quotePaths, terminalKeyAction } from './input'
 import type { ViewsControl } from './actions'
 
 const THEME: ITheme = {
@@ -68,7 +68,8 @@ export class TerminalView {
       fontSize: config.font.size,
       scrollback: config.scrollback,
       theme: THEME,
-      windowsPty: { backend: 'conpty', buildNumber: osBuild }
+      windowsPty: { backend: 'conpty', buildNumber: osBuild },
+      linkHandler: osc8LinkHandler((uri) => api.openExternal(uri))
     })
     this.term.loadAddon(this.fit)
     this.term.loadAddon(this.search)

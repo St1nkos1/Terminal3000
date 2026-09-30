@@ -33,3 +33,19 @@ export function quotePaths(paths: string[]): string {
     .map((p) => `"${p}"`)
     .join(' ')
 }
+
+export interface LinkHandler {
+  activate(event: MouseEvent, uri: string): void
+  allowNonHttpProtocols: boolean
+}
+
+// Ссылки OSC 8: без своего обработчика xterm показывает confirm() и открывает пустое окно
+export function osc8LinkHandler(open: (uri: string) => void): LinkHandler {
+  return {
+    allowNonHttpProtocols: false,
+    activate: (event, uri) => {
+      event.preventDefault()
+      open(uri)
+    }
+  }
+}

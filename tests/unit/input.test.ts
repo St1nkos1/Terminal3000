@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { clipboardInput, quotePaths, terminalKeyAction, type KeyLike } from '../../src/renderer/input'
+import { clipboardInput, osc8LinkHandler, quotePaths, terminalKeyAction, type KeyLike } from '../../src/renderer/input'
+
+describe('ссылки OSC 8 (gh, ls --hyperlink)', () => {
+  it('открываются через main, без confirm() и пустого окна xterm', () => {
+    const opened: string[] = []
+    let prevented = false
+    const handler = osc8LinkHandler((uri) => opened.push(uri))
+    const event = { preventDefault: () => (prevented = true) } as unknown as MouseEvent
+    handler.activate(event, 'https://github.com/st1nkos/Terminal3000')
+    expect(opened).toEqual(['https://github.com/st1nkos/Terminal3000'])
+    expect(prevented).toBe(true)
+    // file:// и прочие схемы xterm даже не активирует
+    expect(handler.allowNonHttpProtocols).toBe(false)
+  })
+})
 
 function key(code: string, mods: Partial<KeyLike> = {}): KeyLike {
   return { type: 'keydown', code, ctrlKey: false, shiftKey: false, altKey: false, metaKey: false, ...mods }
