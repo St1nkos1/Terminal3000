@@ -10,11 +10,11 @@
 
 | Проверка | Результат |
 |---|---|
-| Хук видит `T3000_TAB_ID` из окружения родителя | |
-| Exec-форма `"command": "node"` + `args` и `async: true` работают | |
-| `/clear` меняет `session_id` | |
-| `node-pty` 1.1 грузится в Electron 44 без пересборки (`npm run check:pty`) | |
-| OSC 7777 из PowerShell 5.1 не виден на экране, `claude-exit` приходит | |
+| Хук видит `T3000_TAB_ID` из окружения родителя | да — 30.09.2026, Claude Code 2.1.285, `claude -p --settings <временный файл>` |
+| Exec-форма `"command": "node"` + `args` и `async: true` работают | да — там же, события `SessionStart`, `UserPromptSubmit`, `Stop` пришли и с `async: true`, и без |
+| `/clear` меняет `session_id` | проверяет автор в обычной сессии (в `-p` команды нет) |
+| `node-pty` 1.1 грузится в Electron 44 без пересборки (`npm run check:pty`) | да — `node-pty OK (Electron 44.5.1)` |
+| OSC 7777 из PowerShell 5.1 не виден на экране, `claude-exit` приходит | да — интеграционный тест `tests/integration/pty-manager.test.ts` на настоящем ConPTY; на экране проверяет автор |
 
 ## Профиль и запуск
 
