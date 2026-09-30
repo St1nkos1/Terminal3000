@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { pane } from '../../src/shared/layout'
+import { layoutTabs, pane } from '../../src/shared/layout'
 import type { LayoutNode } from '../../src/shared/types'
 import { setupActions } from '../fixtures/actions'
 import { makeTab } from '../fixtures/tabs'
@@ -93,13 +93,64 @@ describe('консоль под Claude', () => {
     expect(calls.createTab).toHaveLength(2)
   })
 
-  it('консоль и выключенная настройка — по-старому: вкладка встаёт на место активной', () => {
-    const { store, actions, calls } = setupActions([a, sa, b, sb], { layout: col('a', 'sa'), activeTab: 'a' })
+  it('консоль другой папки приводит своего Claude: под Claude не остаётся чужой консоли', () => {
+    // фокус на нижней консоли пары — раньше чужая консоль вставала под Claude
+    const { store, actions, calls } = setupActions([a, sa, b, sb], { layout: col('a', 'sa', [0.7, 0.3]), activeTab: 'sa' })
     actions.activate('sb')
-    expect(store.get().view.layout).toEqual(col('sb', 'sa'))
+    expect(store.get().view.layout).toEqual(col('b', 'sb', [0.7, 0.3]))
+    expect(store.get().view.activeTab).toBe('sb')
+    expect(calls.focus.at(-1)).toBe('sb')
+    actions.activate('a')
+    expect(store.get().view.layout).toEqual(col('a', 'sa', [0.7, 0.3]))
+    expect(calls.createTab).toEqual([])
+  })
+
+  it('Claude проекта — последний открывавшийся; в папке без Claude консоль сменяет пару целиком', () => {
+    const b2 = makeTab('b2', 'D:\\q', { kind: 'claude', status: 'idle' })
+    const home = makeTab('h', 'C:\\Users\\u')
+    const { store, actions } = setupActions([a, sa, b, b2, sb, home], { layout: col('a', 'sa'), activeTab: 'a' })
+    actions.activate('b2')
+    actions.activate('a')
+    actions.activate('sb')
+    expect(store.get().view.layout).toEqual(col('b2', 'sb'))
+    actions.activate('h')
+    expect(store.get().view.layout).toEqual(pane('h'))
+    expect(store.get().view.activeTab).toBe('h')
+  })
+
+  it('Claude консоли уже на экране — консоль встаёт под ним, остальное на месте', () => {
+    const sa2 = makeTab('sa2', 'C:\\p')
+    const row = (l: LayoutNode, r: LayoutNode): LayoutNode => ({ type: 'split', dir: 'row', sizes: [0.5, 0.5], children: [l, r] })
+    const { store, actions } = setupActions([a, sa, sa2, b, sb], { layout: row(col('a', 'sa'), pane('b')), activeTab: 'sa' })
+    actions.activate('sb')
+    expect(store.get().view.layout).toEqual(row(col('a', 'sa'), col('b', 'sb')))
+    expect(store.get().view.activeTab).toBe('sb')
+    // вторая консоль того же проекта сменяет нижнюю, даже если фокус на Claude
+    actions.activate('a')
+    actions.activate('sa2')
+    expect(store.get().view.layout).toEqual(row(col('a', 'sa2'), col('b', 'sb')))
+    // консоль уже на экране — только фокус
+    actions.activate('sb')
+    expect(store.get().view.layout).toEqual(row(col('a', 'sa2'), col('b', 'sb')))
+    expect(store.get().view.activeTab).toBe('sb')
+  })
+
+  it('явный сплит и выключенная настройка — по-старому: вкладка встаёт на место активной', () => {
+    const { store, actions, calls } = setupActions([a, sa, b, sb], { layout: col('a', 'sa'), activeTab: 'a' })
+    actions.place('sb', 'row')
+    expect(store.get().view.layout).toEqual({
+      type: 'split',
+      dir: 'column',
+      sizes: [0.5, 0.5],
+      children: [{ type: 'split', dir: 'row', sizes: [0.5, 0.5], children: [pane('a'), pane('sb')] }, pane('sa')]
+    })
     actions.onConfig({ ...store.get().config, consoleUnderClaude: false })
+    actions.activate('sa')
     actions.activate('b')
-    expect(store.get().view.layout).toEqual(col('b', 'sa'))
+    expect(layoutTabs(store.get().view.layout)).toEqual(['a', 'sb', 'b'])
+    actions.activate('sb')
+    actions.activate('a')
+    expect(layoutTabs(store.get().view.layout)).toEqual(['a', 'sb', 'b'])
     expect(calls.createTab).toEqual([])
   })
 })

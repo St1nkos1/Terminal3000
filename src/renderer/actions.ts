@@ -13,11 +13,20 @@ import type {
   SplitDir,
   ViewState
 } from '../shared/types'
-import { attachConsole, fixView, placeTab, showWithConsole } from '../shared/view'
+import { attachConsole, fixView, placeTab, showConsole, showWithConsole } from '../shared/view'
 import { buildKeymap } from './keybindings'
 import type { PaletteCommand, PaletteMode } from './palette-pages'
 import type { Store, UiState } from './store'
-import { consoleStep, conversationTab, mruStep, nextAttention, panelOrder, projectConsole, touchMru } from './tab-order'
+import {
+  consoleStep,
+  conversationTab,
+  mruStep,
+  nextAttention,
+  panelOrder,
+  projectClaude,
+  projectConsole,
+  touchMru
+} from './tab-order'
 
 export interface ViewsControl {
   focus(tab: string): void
@@ -68,19 +77,25 @@ export function createActions(d: ActionDeps) {
   // Claude, вставший на экран во время Ctrl+Tab без консоли: её создаст endCycle
   let consoleAfterCycle: string | null = null
 
-  // Вкладка на экран; Claude без явного сплита встаёт парой с консолью своего проекта.
-  // true — вкладка пришла на экран, а консоли у проекта нет: её нужно создать
+  // Вкладка на экран; без явного сплита Claude встаёт парой с консолью своего проекта,
+  // а консоль — с Claude своего проекта, чтобы под Claude не оказалась чужая консоль.
+  // true — Claude пришёл на экран, а консоли у проекта нет: её нужно создать
   function show(tab: string, split?: SplitDir): boolean {
     const s = store.get()
     const info = s.app.tabs.find((t) => t.id === tab)
-    if (split || !info || info.kind !== 'claude' || !s.config.consoleUnderClaude) {
+    if (split || !info || !s.config.consoleUnderClaude) {
       setView(placeTab(s.view, tab, split))
+      return false
+    }
+    const shells = new Set(s.app.tabs.filter((t) => t.kind === 'shell').map((t) => t.id))
+    const isShell = (t: string) => shells.has(t)
+    if (info.kind === 'shell') {
+      setView(showConsole(s.view, tab, projectClaude(s.app.tabs, s.mru, info)?.id ?? null, isShell))
       return false
     }
     const onScreen = containsTab(s.view.layout, tab)
     const shell = projectConsole(s.app.tabs, info)
-    const shells = new Set(s.app.tabs.filter((t) => t.kind === 'shell').map((t) => t.id))
-    setView(showWithConsole(s.view, tab, shell?.id ?? null, (t) => shells.has(t)))
+    setView(showWithConsole(s.view, tab, shell?.id ?? null, isShell))
     return !onScreen && !shell
   }
 

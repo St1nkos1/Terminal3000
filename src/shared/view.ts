@@ -70,6 +70,21 @@ export function showWithConsole(view: ViewState, tab: string, shell: string | nu
   return { ...view, layout: view.layout && slot ? replaceNode(view.layout, slot, next) : next, activeTab: tab }
 }
 
+// Консоль встаёт на экран под Claude своего проекта; claude: null — Claude в папке нет, консоль встаёт одна.
+// Место — как у Claude: пара активной панели сменяется целиком, пропорции остаются
+export function showConsole(view: ViewState, shell: string, claude: string | null, isShell: IsShell): ViewState {
+  if (containsTab(view.layout, shell)) return { ...view, activeTab: shell }
+  // Claude уже на экране: консоль встаёт под ним, в паре — вместо нижней
+  const onScreen = claude !== null && containsTab(view.layout, claude)
+  const target = onScreen ? claude : targetPane(view)
+  const slot = view.layout && target ? slotOf(view.layout, target, isShell) : null
+  const sizes = slot?.type === 'split' ? slot.sizes : [0.5, 0.5]
+  const next: LayoutNode = claude
+    ? { type: 'split', dir: 'column', sizes, children: [pane(claude), pane(shell)] }
+    : pane(shell)
+  return { ...view, layout: view.layout && slot ? replaceNode(view.layout, slot, next) : next, activeTab: shell }
+}
+
 // Созданная консоль встаёт под вкладкой, если та ещё на экране; активная вкладка не меняется
 export function attachConsole(view: ViewState, tab: string, shell: string): ViewState {
   if (!view.layout || !containsTab(view.layout, tab) || containsTab(view.layout, shell)) return view

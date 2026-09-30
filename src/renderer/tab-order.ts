@@ -118,6 +118,17 @@ export function projectConsole(tabs: TabInfo[], tab: TabInfo): TabInfo | undefin
   return tabs.find((t) => t.id !== tab.id && t.kind === 'shell' && cwdKey(t.cwd) === key)
 }
 
+// Claude проекта для его консоли: последний открывавшийся, иначе первый по порядку
+export function projectClaude(tabs: TabInfo[], mru: string[], shell: TabInfo): TabInfo | undefined {
+  const key = cwdKey(shell.cwd)
+  const claudes = tabs.filter((t) => t.kind === 'claude' && cwdKey(t.cwd) === key)
+  for (const id of mru) {
+    const t = claudes.find((c) => c.id === id)
+    if (t) return t
+  }
+  return claudes[0]
+}
+
 // Claude-вкладка, в которой идёт этот разговор; после выхода Claude вкладка — уже консоль
 export function conversationTab(tabs: TabInfo[], sessionId: string): TabInfo | undefined {
   return tabs.find((t) => t.kind === 'claude' && t.claudeSessionId === sessionId)
