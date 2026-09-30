@@ -98,6 +98,18 @@ describe('ProjectIndex', () => {
     expect(await new ProjectIndex(claudeDir).list([])).toEqual([])
   })
 
+  it('транскрипты сабагентов в список разговоров не попадают', async () => {
+    const a = join(work, 'alpha')
+    mkdirSync(a)
+    conversation('x', 'main', user(a, 'основной разговор'), new Date(2026, 0, 2))
+    // --resume такого id упал бы: это не разговор пользователя
+    conversation('x', 'side', user(a, 'задача сабагента', { isSidechain: true }), new Date(2026, 0, 3))
+    conversation('x', 'agent-1a2b3c', user(a, 'задача агента'), new Date(2026, 0, 4))
+    const [p] = await new ProjectIndex(claudeDir).list([])
+    expect(p.conversations.map((c) => c.sessionId)).toEqual(['main'])
+    expect(parseConversationHead(user(a, 'x', { isSidechain: true })).sidechain).toBe(true)
+  })
+
   it('пропускает файлы с небезопасным именем и не-jsonl', async () => {
     const a = join(work, 'alpha')
     mkdirSync(a)

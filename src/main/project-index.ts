@@ -22,9 +22,11 @@ function promptText(content: unknown): string {
     .join(' ')
 }
 
-export function parseConversationHead(text: string): { cwd: string | null; firstPrompt: string } {
+// sidechain: транскрипт сабагента, а не разговор пользователя
+export function parseConversationHead(text: string): { cwd: string | null; firstPrompt: string; sidechain?: true } {
   let cwd: string | null = null
   let firstPrompt: string | null = null
+  let sidechain = false
   for (const raw of text.split('\n')) {
     if (cwd !== null && firstPrompt !== null) break
     let o: unknown
@@ -34,12 +36,13 @@ export function parseConversationHead(text: string): { cwd: string | null; first
       continue
     }
     if (!isObj(o)) continue
+    if (o.isSidechain === true) sidechain = true
     if (cwd === null && typeof o.cwd === 'string' && o.cwd.length > 0) cwd = o.cwd
     if (firstPrompt !== null || o.type !== 'user' || o.isMeta === true || !isObj(o.message)) continue
     const prompt = promptText(o.message.content).replace(/\s+/g, ' ').trim()
     if (prompt && !SERVICE_PREFIXES.some((p) => prompt.startsWith(p))) firstPrompt = truncate(prompt, 80)
   }
-  return { cwd, firstPrompt: firstPrompt ?? NO_PROMPT }
+  return { cwd, firstPrompt: firstPrompt ?? NO_PROMPT, ...(sidechain ? { sidechain: true as const } : {}) }
 }
 
 async function readHead(file: string): Promise<string> {
@@ -66,6 +69,7 @@ interface CacheEntry {
   size: number
   cwd: string | null
   title: string
+  sidechain: boolean
 }
 
 export class ProjectIndex {
@@ -129,11 +133,12 @@ export class ProjectIndex {
       const found = await Promise.all(
         names.map(async (name) => {
           const m = SESSION_FILE.exec(name)
-          if (!m) return null
+          // agent-*.jsonl — транскрипты сабагентов старых версий Claude Code
+          if (!m || name.startsWith('agent-')) return null
           const file = join(root, dir, name)
           seen.add(file)
           const entry = await this.read(file)
-          return entry?.cwd ? { sessionId: m[1], cwd: entry.cwd, title: entry.title, mtime: entry.mtime } : null
+          return entry?.cwd && !entry.sidechain ? { sessionId: m[1], cwd: entry.cwd, title: entry.title, mtime: entry.mtime } : null
         })
       )
       for (const c of found) if (c) out.push(c)
@@ -148,8 +153,8 @@ export class ProjectIndex {
       if (!st.isFile()) return null
       const cached = this.cache.get(file)
       if (cached && cached.mtime === st.mtimeMs && cached.size === st.size) return cached
-      const { cwd, firstPrompt } = parseConversationHead(await readHead(file))
-      const entry = { mtime: st.mtimeMs, size: st.size, cwd, title: firstPrompt }
+      const { cwd, firstPrompt, sidechain } = parseConversationHead(await readHead(file))
+      const entry = { mtime: st.mtimeMs, size: st.size, cwd, title: firstPrompt, sidechain: sidechain === true }
       this.cache.set(file, entry)
       return entry
     } catch {
