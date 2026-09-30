@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { HookServer } from '../../src/main/hook-server'
 import type { T3000Api } from '../../src/shared/ipc'
 import type { HookEvent } from '../../src/shared/types'
-import { launchApp, makeDirs, runHookMode, testEnv, writeTestConfig } from './helpers'
+import { launchApp, makeDirs, ROOT, runHookMode, testEnv, writeTestConfig } from './helpers'
 
 const API_KEYS = [
   'attach',
@@ -176,5 +176,52 @@ test('выход из Windows: workspace.json записан сразу, поз�
     expect(saved.tabs.map((t: { id: string }) => t.id)).toEqual([id])
   } finally {
     await app.close()
+  }
+})
+
+test('закрытие окна, пока Claude работает, — с подтверждением', async () => {
+  const dirs = makeDirs()
+  writeTestConfig(dirs.data)
+  const app = await launchApp(dirs, [dirs.project])
+  try {
+    const page = await app.firstWindow()
+    const { tabs } = await tabsOf(page)
+    const id = tabs[0].id
+    // консоль шлёт хуки настоящим скриптом: T3000_* уже в её окружении — вкладка становится работающим Claude
+    const hook = join(ROOT, 'hooks', 't3000-hook.js')
+    await page.evaluate(
+      ({ tab, hook }) => {
+        const api = (window as unknown as Win).t3000
+        api.input(tab, `'{"hook_event_name":"SessionStart","session_id":"s1","source":"startup"}' | node "${hook}"\r`)
+        api.input(tab, `'{"hook_event_name":"UserPromptSubmit","session_id":"s1"}' | node "${hook}"\r`)
+      },
+      { tab: id, hook }
+    )
+    await expect
+      .poll(async () => (await tabsOf(page)).tabs[0], { timeout: 30000 })
+      .toMatchObject({ kind: 'claude' })
+    await expect
+      .poll(async () => page.evaluate(async () => (await (window as unknown as Win).t3000.getInit()).state.tabs[0].status), {
+        timeout: 30000
+      })
+      .toBe('working')
+
+    // «Отмена»: окно остаётся
+    await app.evaluate(({ dialog, BrowserWindow }) => {
+      dialog.showMessageBox = (async () => ({ response: 1, checkboxChecked: false })) as typeof dialog.showMessageBox
+      BrowserWindow.getAllWindows()[0].close()
+    })
+    await page.waitForTimeout(500)
+    expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1)
+
+    // «Закрыть»: окно закрывается
+    const closed = app.waitForEvent('close')
+    await app.evaluate(({ dialog, BrowserWindow }) => {
+      dialog.showMessageBox = (async () => ({ response: 0, checkboxChecked: false })) as typeof dialog.showMessageBox
+      BrowserWindow.getAllWindows()[0].close()
+    })
+    await closed
+  } finally {
+    await app.close().catch(() => undefined)
   }
 })

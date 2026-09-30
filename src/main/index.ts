@@ -22,6 +22,7 @@ import type { AppConfig, AppState, HookEvent, HooksState, InitData } from '../sh
 import { showTab } from '../shared/view'
 import { parseSoundSpec } from '../shared/sounds'
 import { buildBanners } from './banners'
+import { closeWarning } from './close-guard'
 import { hasHookFlag, parseFolderArg } from './cli'
 import { loadConfig, watchConfig } from './config'
 import { Controller } from './controller'
@@ -133,6 +134,7 @@ async function start(): Promise<void> {
 
   let win: BrowserWindow | null = null
   let quitting = false
+  let endingSession = false
 
   const send = (channel: string, ...args: unknown[]): void => {
     if (win && !win.isDestroyed()) win.webContents.send(channel, ...args)
@@ -411,6 +413,32 @@ async function start(): Promise<void> {
     w.on('blur', () => controller.setWindowFocused(false))
     // при выходе из Windows и перезагрузке before-quit не приходит
     w.on('session-end', beginQuit)
+    // Windows завершает сеанс: вопрос о закрытии заблокировал бы выход
+    w.on('query-session-end', () => {
+      endingSession = true
+    })
+    let closeConfirmed = false
+    w.on('close', (e) => {
+      if (quitting || endingSession || closeConfirmed) return
+      const warning = closeWarning(controller.tabs())
+      if (!warning) return
+      e.preventDefault()
+      void dialog
+        .showMessageBox(w, {
+          type: 'warning',
+          title: 'Terminal3000',
+          message: 'Закрыть Terminal3000?',
+          detail: warning,
+          buttons: ['Закрыть', 'Отмена'],
+          defaultId: 1,
+          cancelId: 1
+        })
+        .then(({ response }) => {
+          if (response !== 0 || w.isDestroyed()) return
+          closeConfirmed = true
+          w.close()
+        })
+    })
     w.on('closed', () => {
       win = null
     })
