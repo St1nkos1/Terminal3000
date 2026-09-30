@@ -1,0 +1,287 @@
+:root {
+  color-scheme: dark;
+  --bg: #1e1e1e;
+  --panel: #252526;
+  --panel-2: #2d2d30;
+  --border: #3c3c3c;
+  --text: #d4d4d4;
+  --muted: #8a8a8a;
+  --accent: #4fa3ff;
+  --st-gray: #8a8a8a;
+  --st-blue: #4fa3ff;
+  --st-yellow: #e5c07b;
+  --st-green: #7ec16e;
+  --st-red: #e06c75;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 13px 'Segoe UI', system-ui, sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.app {
+  display: flex;
+  height: 100%;
+}
+
+/* Боковая панель */
+.sidebar {
+  width: 260px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 44px;
+  align-items: center;
+  gap: 2px;
+  padding-top: 4px;
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  color: var(--muted);
+}
+
+.sidebar-toggle {
+  padding: 0 6px;
+  color: var(--muted);
+}
+
+.groups {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.group-head {
+  display: block;
+  width: 100%;
+  padding: 6px 10px 2px;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 3px 10px 3px 22px;
+  text-align: left;
+}
+
+.tab-row:hover {
+  background: var(--panel-2);
+}
+
+.tab-row.shown {
+  background: #2a2d2e;
+}
+
+.tab-row.active {
+  background: #37373d;
+}
+
+.tab-row .icon {
+  width: 14px;
+  text-align: center;
+}
+
+.tab-row .label {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.tab-row .state {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mini {
+  width: 32px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.mini.active {
+  background: #37373d;
+}
+
+/* Цвета статусов §4.2 */
+.status-sleeping,
+.status-starting,
+.status-idle,
+.status-shell {
+  --st: var(--st-gray);
+}
+
+.status-working {
+  --st: var(--st-blue);
+}
+
+.status-waiting {
+  --st: var(--st-yellow);
+}
+
+.status-done {
+  --st: var(--st-green);
+}
+
+.status-crashed {
+  --st: var(--st-red);
+}
+
+.tab-row .icon,
+.mini,
+.pane-header .status {
+  color: var(--st);
+}
+
+/* Сплиты и панели */
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.split {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.split-row {
+  flex-direction: row;
+}
+
+.split-column {
+  flex-direction: column;
+}
+
+.split-cell {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.divider {
+  flex: none;
+  background: var(--border);
+}
+
+.split-row > .divider {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.split-column > .divider {
+  height: 4px;
+  cursor: row-resize;
+}
+
+.pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid transparent;
+}
+
+.pane.active {
+  border-color: #3a5f8a;
+}
+
+.pane-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 10px;
+  background: var(--panel-2);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.pane-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: #3b2a2a;
+  color: #f0c0c0;
+  font-size: 12px;
+}
+
+.note-text {
+  flex: 1;
+}
+
+.btn {
+  padding: 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel-2);
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.pane-body {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.term {
+  position: absolute;
+  inset: 4px 0 0 8px;
+}
+
+.empty {
+  margin: auto;
+  color: var(--muted);
+}

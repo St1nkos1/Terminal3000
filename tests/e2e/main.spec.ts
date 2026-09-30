@@ -52,7 +52,7 @@ test('окно открывается, наружу только window.t3000, �
   try {
     const page = await app.firstWindow()
     await expect(page).toHaveTitle('Terminal3000')
-    await expect(page.locator('#boot')).toHaveText('Terminal3000')
+    await expect(page.locator('.app')).toBeVisible()
     const r = await page.evaluate(async () => {
       const w = window as unknown as Record<string, unknown> & Win
       const init = await w.t3000.getInit()
