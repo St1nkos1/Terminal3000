@@ -87,6 +87,13 @@ describe('step: процесс', () => {
   it('use-console → консоль', () => {
     expect(step(claudeAt('crashed'), { type: 'use-console' }, 300)).toMatchObject({ status: 'shell', kind: 'shell' })
   })
+
+  it('resume → вкладка привязана к другому разговору', () => {
+    expect(step(claudeAt('idle'), { type: 'resume', sessionId: 'sess-2' }, 300)).toMatchObject({
+      kind: 'claude',
+      claudeSessionId: 'sess-2'
+    })
+  })
 })
 
 describe('step: хуки', () => {

@@ -321,6 +321,23 @@ describe('Controller: ввод и процессы', () => {
     expect(pty.writes).toEqual([['t1', 'dir\r']])
   })
 
+  it('resumeInTab: Claude во вкладке перезапускается с другим разговором', () => {
+    const { ctl, pty, tab, lastScript, counts } = setup()
+    ctl.restore(ws([rec('a', { kind: 'claude', claudeSessionId: 'sess-1' }), rec('b')], 'a'))
+    const persisted = counts.persist
+    ctl.resumeInTab('a', 'sess-2')
+    expect(pty.spawns.map((s) => s.tab)).toEqual(['a', 'a'])
+    expect(lastScript()).toContain("claude --resume 'sess-2';")
+    expect(tab('a')).toMatchObject({ kind: 'claude', claudeSessionId: 'sess-2', status: 'starting', alive: true })
+    expect(counts.persist).toBeGreaterThan(persisted)
+    // консоль, чужой id и небезопасный id ничего не запускают
+    ctl.resumeInTab('b', 'sess-3')
+    ctl.resumeInTab('zzz', 'sess-3')
+    ctl.resumeInTab('a', "x'; rm -rf")
+    expect(pty.spawns).toHaveLength(2)
+    expect(tab('a')?.claudeSessionId).toBe('sess-2')
+  })
+
   it('упавший claude: Enter — новый разговор, другая клавиша — консоль', () => {
     const { ctl, pty, tab, lastScript } = setup()
     ctl.restore(ws([rec('a', { kind: 'claude', claudeSessionId: 'sess-1' })], 'a'))

@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { ActionId, AppConfig, AppState, InitData, Project, ViewState } from '../shared/types'
+import type { ActionId, AppConfig, AppState, Conversation, InitData, Project, ViewState } from '../shared/types'
 import { buildKeymap } from './keybindings'
 import type { PaletteMode } from './palette-pages'
 import type { MruCycle } from './tab-order'
@@ -8,6 +8,8 @@ export type Overlay =
   | { type: 'palette'; mode: PaletteMode; back: PaletteMode[] }
   | { type: 'rename'; tab: string }
   | { type: 'confirm-close'; tab: string }
+  // Claude во вкладке работает: открыть в ней другой разговор только после вопроса
+  | { type: 'confirm-resume'; tab: string; conversation: Conversation }
   // меню группы вкладок у курсора: x, y — координаты окна
   | { type: 'group-menu'; cwd: string; x: number; y: number }
 

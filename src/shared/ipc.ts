@@ -24,6 +24,7 @@ export const IPC = {
   closeTab: 't3000:close-tab',
   renameTab: 't3000:rename-tab',
   startTab: 't3000:start-tab',
+  resumeInTab: 't3000:resume-in-tab',
   setTabCwd: 't3000:set-tab-cwd',
   updateView: 't3000:update-view',
   listProjects: 't3000:list-projects',
@@ -57,6 +58,8 @@ export interface T3000Api {
   closeTab(tab: string): void
   renameTab(tab: string, title: string): void
   startTab(tab: string, shell?: string): void
+  // Claude-вкладка переходит к другому разговору (claude --resume)
+  resumeInTab(tab: string, sessionId: string): void
   setTabCwd(tab: string, cwd: string): void
   updateView(view: ViewState): void
   listProjects(): Promise<Project[]>

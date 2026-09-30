@@ -101,7 +101,8 @@ function TabHistoryList({ tab, now }: { tab: TabInfo; now: number }) {
   return (
     <div className="history">
       {history.items.map(({ conversation: c, openIn }) => {
-        const resume = () => void actions.resumeConversation(c)
+        // в этой вкладке; с Ctrl — в новой, как раньше
+        const resume = (newTab: boolean) => void actions.resumeConversation(c, newTab ? undefined : tab.id)
         const when = new Date(c.mtime).toLocaleString('ru-RU')
         return (
           <div
@@ -109,10 +110,10 @@ function TabHistoryList({ tab, now }: { tab: TabInfo; now: number }) {
             role="button"
             tabIndex={0}
             className="history-row"
-            title={`${c.title}\n${when}${openIn ? '\nуже открыт во вкладке' : ''}`}
-            onClick={resume}
+            title={`${c.title}\n${when}${openIn ? '\nуже открыт во вкладке' : '\nCtrl+клик — в новой вкладке'}`}
+            onClick={(e) => resume(e.ctrlKey)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') resume()
+              if (e.key === 'Enter' || e.key === ' ') resume(e.ctrlKey)
             }}
           >
             <span className="history-mark">{openIn ? '●' : ''}</span>

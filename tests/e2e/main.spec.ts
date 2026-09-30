@@ -28,6 +28,7 @@ const API_KEYS = [
   'readClipboard',
   'renameTab',
   'resize',
+  'resumeInTab',
   'setBadge',
   'setTabCwd',
   'startTab',
@@ -269,8 +270,8 @@ test('стрелка Claude-вкладки: прошлые разговоры п
     await expect(first.locator('.label')).toHaveText(titles)
     await expect(first.locator('.history-mark')).toHaveText(['', '', ''])
 
-    // разговор открывается в новой Claude-вкладке через resume
-    await first.locator('.history-row', { hasText: titles[1] }).click()
+    // Ctrl+клик: разговор открывается в новой Claude-вкладке через resume
+    await first.locator('.history-row', { hasText: titles[1] }).click({ modifiers: ['Control'] })
     await expect.poll(async () => (await tabsOf(page)).tabs.length).toBe(3)
     const r = await tabsOf(page)
     expect(r.tabs[2]).toMatchObject({ cwd: dirs.project, kind: 'claude' })
@@ -289,9 +290,18 @@ test('стрелка Claude-вкладки: прошлые разговоры п
     await expect.poll(async () => (await tabsOf(page)).view.activeTab).toBe(r.tabs[2].id)
     expect((await tabsOf(page)).tabs).toHaveLength(3)
 
-    // стрелка сворачивает список
-    await page.locator('.tab-expand').first().click()
+    // простой клик: разговор открывается в той же вкладке, новой не появляется, список сворачивается
+    await first.locator('.history-row', { hasText: titles[2] }).click()
+    await expect.poll(() => sessions(page)).toEqual([null, 's2', 's1'])
+    const after = await tabsOf(page)
+    expect(after.tabs).toHaveLength(3)
+    expect(after.tabs[1]).toMatchObject({ id: r.tabs[1].id, kind: 'claude', alive: true })
+    expect(after.view.activeTab).toBe(r.tabs[1].id)
     await expect(page.locator('.history')).toHaveCount(1)
+
+    // стрелка сворачивает список
+    await page.locator('.tab-expand').nth(1).click()
+    await expect(page.locator('.history')).toHaveCount(0)
   } finally {
     await app.close()
   }

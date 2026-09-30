@@ -14,7 +14,7 @@ import {
   type TermSize,
   type Workspace
 } from '../shared/types'
-import { buildLaunch, resolveExecutable, type LaunchContext } from './launch'
+import { buildLaunch, isSafeSessionId, resolveExecutable, type LaunchContext } from './launch'
 import type { Logger } from './log'
 // только типы: unit-тесты не должны загружать node-pty
 import type { PtyCallbacks, PtyManager } from './pty-manager'
@@ -146,6 +146,13 @@ export class Controller {
       this.store.setShell(tab, shell)
     }
     this.start(tab)
+  }
+
+  // Другой разговор в той же Claude-вкладке: claude перезапускается с --resume
+  resumeInTab(tab: string, sessionId: string): void {
+    if (this.store.get(tab)?.kind !== 'claude' || !isSafeSessionId(sessionId)) return
+    this.store.apply(tab, { type: 'resume', sessionId })
+    this.start(tab, 'resume')
   }
 
   input(tab: string, data: string): void {

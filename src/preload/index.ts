@@ -24,6 +24,7 @@ const api: T3000Api = {
   closeTab: (tab) => ipcRenderer.send(IPC.closeTab, tab),
   renameTab: (tab, title) => ipcRenderer.send(IPC.renameTab, tab, title),
   startTab: (tab, shell) => ipcRenderer.send(IPC.startTab, tab, shell),
+  resumeInTab: (tab, sessionId) => ipcRenderer.send(IPC.resumeInTab, tab, sessionId),
   setTabCwd: (tab, cwd) => ipcRenderer.send(IPC.setTabCwd, tab, cwd),
   updateView: (view) => ipcRenderer.send(IPC.updateView, view),
   listProjects: () => ipcRenderer.invoke(IPC.listProjects),

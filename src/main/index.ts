@@ -287,6 +287,9 @@ async function start(): Promise<void> {
   on(IPC.startTab, (tab, shellName) => {
     if (isTabId(tab) && (shellName === undefined || typeof shellName === 'string')) controller.startTab(tab, shellName)
   })
+  on(IPC.resumeInTab, (tab, sessionId) => {
+    if (isTabId(tab) && typeof sessionId === 'string') controller.resumeInTab(tab, sessionId)
+  })
   on(IPC.setTabCwd, (tab, cwd) => {
     if (isTabId(tab) && typeof cwd === 'string') controller.setTabCwd(tab, cwd)
   })

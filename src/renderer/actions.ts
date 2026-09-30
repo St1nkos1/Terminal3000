@@ -195,11 +195,30 @@ export function createActions(d: ActionDeps) {
     if (n === projectsRead) store.set({ projects })
   }
 
+  // Разговор из списка под вкладкой открывается в ней же (inTab), иначе — в новой вкладке.
   // Разговор, уже открытый во вкладке, второй раз не запускается
-  async function resumeConversation(c: Conversation): Promise<void> {
-    const open = conversationTab(store.get().app.tabs, c.sessionId)
+  async function resumeConversation(c: Conversation, inTab?: string): Promise<void> {
+    const tabs = store.get().app.tabs
+    const open = conversationTab(tabs, c.sessionId)
+    const target = inTab ? tabs.find((t) => t.id === inTab) : undefined
     if (open) activate(open.id)
-    else await openTab({ cwd: c.cwd, kind: 'claude', claude: 'resume', sessionId: c.sessionId })
+    else if (!target) await openTab({ cwd: c.cwd, kind: 'claude', claude: 'resume', sessionId: c.sessionId })
+    else if (isBusyClaude(target)) store.set({ overlay: { type: 'confirm-resume', tab: target.id, conversation: c } })
+    else switchConversation(target.id, c)
+  }
+
+  function switchConversation(tab: string, c: Conversation): void {
+    api.resumeInTab(tab, c.sessionId)
+    // выбор сделан, список больше не нужен
+    store.set({ historyTabs: store.get().historyTabs.filter((t) => t !== tab) })
+    activate(tab)
+  }
+
+  function confirmResume(): void {
+    const o = store.get().overlay
+    if (o?.type !== 'confirm-resume') return
+    store.set({ overlay: null })
+    switchConversation(o.tab, o.conversation)
   }
 
   function resizeSplit(path: number[], sizes: number[]): void {
@@ -461,6 +480,7 @@ export function createActions(d: ActionDeps) {
     renameTab,
     requestClose,
     confirmClose,
+    confirmResume,
     closeSearch,
     endCycle,
     toggleConsole,

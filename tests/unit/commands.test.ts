@@ -210,6 +210,44 @@ describe('команды', () => {
     expect(store.get().view.activeTab).toBe('n')
   })
 
+  it('разговор из списка под вкладкой открывается в ней же; занятый Claude — после подтверждения', async () => {
+    const tabs = [
+      makeTab('a', 'C:\\p', { kind: 'claude', status: 'idle', claudeSessionId: 's1' }),
+      makeTab('b', 'C:\\p', { kind: 'claude', status: 'working', claudeSessionId: 's2' }),
+      // консоль проекта уже есть: переход на Claude не создаёт новых вкладок
+      makeTab('sp', 'C:\\p'),
+      makeTab('c', 'D:\\q')
+    ]
+    const conv = (sessionId: string) => ({ sessionId, cwd: 'C:\\p', title: 'старый', mtime: 0 })
+    const { store, actions, calls } = setupActions(tabs, { layout: pane('c'), activeTab: 'c' })
+    store.set({ historyTabs: ['a', 'b'] })
+
+    await actions.resumeConversation(conv('s9'), 'a')
+    expect(calls.resumeInTab).toEqual([['a', 's9']])
+    expect(calls.createTab).toEqual([])
+    expect(store.get().view.activeTab).toBe('a')
+    expect(store.get().historyTabs).toEqual(['b'])
+
+    // Claude работает: сначала вопрос, «Отмена» ничего не меняет
+    await actions.resumeConversation(conv('s8'), 'b')
+    expect(store.get().overlay).toEqual({ type: 'confirm-resume', tab: 'b', conversation: conv('s8') })
+    actions.closeOverlay()
+    expect(calls.resumeInTab).toEqual([['a', 's9']])
+    await actions.resumeConversation(conv('s8'), 'b')
+    actions.confirmResume()
+    expect(calls.resumeInTab).toEqual([
+      ['a', 's9'],
+      ['b', 's8']
+    ])
+    expect(store.get().overlay).toBeNull()
+    expect(store.get().view.activeTab).toBe('b')
+
+    // разговор уже идёт в другой вкладке — переход туда
+    await actions.resumeConversation(conv('s1'), 'b')
+    expect(store.get().view.activeTab).toBe('a')
+    expect(calls.resumeInTab).toHaveLength(2)
+  })
+
   it('поиск открывается и закрывается тем же сочетанием', () => {
     const { store, actions } = setupActions([makeTab('a', 'C:\\p')], { layout: pane('a'), activeTab: 'a' })
     actions.run('search')

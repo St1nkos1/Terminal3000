@@ -19,6 +19,8 @@ export type MachineEvent =
   | { type: 'input' }
   | { type: 'silence' }
   | { type: 'use-console' }
+  // другой разговор в той же вкладке: следом её перезапускают с --resume
+  | { type: 'resume'; sessionId: string }
 
 const WAITING = new Set(['permission_prompt', 'elicitation_dialog', 'elicitation_url_dialog', 'agent_needs_input'])
 const RESUMED = new Set(['elicitation_response', 'elicitation_complete'])
@@ -55,6 +57,8 @@ export function step(s: MachineState, e: MachineEvent, now: number): MachineStat
       return s.status === 'working' ? patch(s, now, { status: 'idle' }) : s
     case 'use-console':
       return patch(s, now, { status: 'shell', kind: 'shell', lastTs: now })
+    case 'resume':
+      return patch(s, now, { kind: 'claude', claudeSessionId: e.sessionId })
     case 'hook':
       return onHook(s, e.hook, e.visible, now)
   }

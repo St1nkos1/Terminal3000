@@ -68,7 +68,8 @@ Claude sessions started before the hooks were installed begin sending statuses a
 
 Click ▸ next to a Claude tab to see the project's past conversations, newest first: the same ones `claude --resume` offers in that folder. It's handy when you need to recall something from an old conversation or pick up a specific one.
 
-- A click opens the conversation in a new Claude tab via `--resume`, started with your [`claudeCommand`](#your-own-claude-command). The current tab keeps working.
+- A click opens the conversation in the same tab: Claude restarts there with `--resume`, started with your [`claudeCommand`](#your-own-claude-command). The conversation you leave stays in the list. If Claude in the tab is working or waiting for an answer, Terminal3000 asks first.
+- Ctrl+click opens the conversation in a new Claude tab instead, and the current tab keeps working.
 - ● marks a conversation that's already open in another tab. A click switches to that tab instead of starting a second copy.
 - The tab's own conversation isn't listed. The sidebar shows the 10 most recent; «Все разговоры (N)…» (All conversations) opens the full list in the palette, with search.
 - The list is re-read every time you expand it, so new conversations show up without a restart.

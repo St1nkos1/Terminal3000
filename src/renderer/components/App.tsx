@@ -3,7 +3,7 @@ import { useApp } from '../context'
 import { matchAction } from '../keybindings'
 import { useStore } from '../store'
 import { Banners } from './Banner'
-import { ConfirmClose, RenameDialog } from './Dialog'
+import { ConfirmClose, ConfirmResume, RenameDialog } from './Dialog'
 import { GroupMenu } from './GroupMenu'
 import { Palette } from './Palette'
 import { PaneTree } from './PaneTree'
@@ -61,6 +61,7 @@ export function App() {
       {overlay?.type === 'group-menu' && <GroupMenu overlay={overlay} />}
       {overlay?.type === 'rename' && <RenameDialog tab={overlay.tab} />}
       {overlay?.type === 'confirm-close' && <ConfirmClose tab={overlay.tab} />}
+      {overlay?.type === 'confirm-resume' && <ConfirmResume overlay={overlay} />}
       {firstRun && <Welcome />}
     </div>
   )

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../context'
-import { useStore } from '../store'
+import { useStore, type Overlay } from '../store'
 import { paneTitle, tabLabel } from '../tab-order'
 
 export function RenameDialog({ tab }: { tab: string }) {
@@ -65,6 +65,40 @@ export function ConfirmClose({ tab }: { tab: string }) {
         <div className="dialog-buttons">
           <button autoFocus className="btn danger" onClick={() => actions.confirmClose(tab)}>
             Закрыть
+          </button>
+          <button className="btn" onClick={() => actions.closeOverlay()}>
+            Отмена
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function ConfirmResume({ overlay }: { overlay: Extract<Overlay, { type: 'confirm-resume' }> }) {
+  const { store, actions } = useApp()
+  const info = useStore(store, (s) => s.app.tabs.find((t) => t.id === overlay.tab))
+  if (!info) return null
+  return (
+    <div className="overlay" onMouseDown={() => actions.closeOverlay()}>
+      <div
+        className="dialog"
+        onMouseDown={(e) => e.stopPropagation()}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault()
+            actions.closeOverlay()
+          }
+        }}
+      >
+        <div className="dialog-title">Открыть другой разговор?</div>
+        <p>
+          Claude ещё работает в «{paneTitle(info)}». Если открыть в этой вкладке «{overlay.conversation.title}», текущее
+          действие прервётся. Сам разговор сохранится в списке.
+        </p>
+        <div className="dialog-buttons">
+          <button autoFocus className="btn danger" onClick={() => actions.confirmResume()}>
+            Открыть
           </button>
           <button className="btn" onClick={() => actions.closeOverlay()}>
             Отмена

@@ -32,6 +32,7 @@ export function setupActions(tabs: TabInfo[], view: Partial<ViewState> = {}, opt
     setTabCwd: [] as [string, string][],
     startTab: [] as [string, string | undefined][],
     renameTab: [] as [string, string][],
+    resumeInTab: [] as [string, string][],
     focus: [] as string[],
     pruned: [] as string[][],
     other: [] as string[]
@@ -69,6 +70,9 @@ export function setupActions(tabs: TabInfo[], view: Partial<ViewState> = {}, opt
     },
     renameTab: (tab: string, title: string) => {
       calls.renameTab.push([tab, title])
+    },
+    resumeInTab: (tab: string, sessionId: string) => {
+      calls.resumeInTab.push([tab, sessionId])
     },
     listProjects: async (): Promise<Project[]> => {
       calls.other.push('listProjects')

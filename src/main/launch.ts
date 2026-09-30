@@ -20,6 +20,11 @@ export interface SpawnSpec {
 const BUILTIN_POWERSHELL: ShellSpec = { file: 'powershell.exe', args: ['-NoLogo'] }
 const SAFE_SESSION_ID = /^[A-Za-z0-9_.-]{1,200}$/
 
+// id разговора попадает в команду PowerShell: только безопасные символы
+export function isSafeSessionId(id: string): boolean {
+  return SAFE_SESSION_ID.test(id)
+}
+
 export function psQuote(s: string): string {
   return `'${s.replace(/['\u2018\u2019\u201a\u201b]/g, (q) => q + q)}'`
 }
@@ -27,7 +32,7 @@ export function psQuote(s: string): string {
 export function claudeScript(claudeCommand: string, start: ClaudeStart, sessionId: string | null): string {
   const parts = [claudeCommand]
   if (start === 'continue') parts.push('--continue')
-  if (start === 'resume' && sessionId && SAFE_SESSION_ID.test(sessionId)) parts.push('--resume', psQuote(sessionId))
+  if (start === 'resume' && sessionId && isSafeSessionId(sessionId)) parts.push('--resume', psQuote(sessionId))
   return (
     `& { $global:LASTEXITCODE = $null; ${parts.join(' ')}; $ok = $?; $c = $LASTEXITCODE; if ($null -eq $c) { $c = [int](-not $ok) }; ` +
     `[Console]::Write([char]27 + ']7777;t3000;claude-exit;' + $c + [char]7) }`
