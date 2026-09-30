@@ -99,6 +99,23 @@ Settings live in `%APPDATA%\Terminal3000\config.json`. The file is created on fi
 | `sounds` | `faceit`, `faceit`, `low`, volume `0.8` | Sounds for `waiting`, `done`, `crashed`, and `volume` from 0 to 1 |
 | `keybindings` | the table above | For example, `"palette": "Ctrl+K"`; an empty string disables the shortcut |
 
+### Your own Claude command
+
+Claude tabs run through `powershell.exe` with your profile loaded, so `claudeCommand` can be a function or alias from your PowerShell profile, for example one that sets up keys or environment variables first. Terminal3000 uses this command for new conversations and also to bring tabs back after a restart: it calls `myclaude --continue` or `myclaude --resume <id>`. So the function has to pass its arguments on to `claude`:
+
+```powershell
+function myclaude {
+  # your environment variables
+  claude @args
+}
+```
+
+```json
+"claudeCommand": "myclaude"
+```
+
+If the function drops `@args`, restored tabs start a new conversation instead of resuming the old one.
+
 ### Custom sound
 
 A sound value is `builtin:faceit`, `builtin:alert`, `builtin:chime`, `builtin:low`, a path to an mp3/wav/ogg file, or `none`. A relative path is resolved from `%APPDATA%\Terminal3000\`:
@@ -117,6 +134,7 @@ The sound `assets/sounds/faceit-accept.mp3` (FACEIT match accept) is the propert
 
 - **Notifications are signed "Electron".** This happens when running from source (`npm start`). In the installed build they're signed "Terminal3000".
 - **No Claude statuses, the tab says «без статусов» (no statuses).** The hooks aren't installed, or the Claude session was started before they were. Palette → «Установить хуки Claude Code» (Install Claude Code hooks), then restart Claude.
+- **After a restart Claude asks you to log in.** You start Claude with your own command from the PowerShell profile, but Terminal3000 restores tabs with `claudeCommand` (`claude` by default). Set your command there, see [Your own Claude command](#your-own-claude-command).
 - **The PowerShell profile doesn't load, execution policy error.** Allow your own scripts: `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 - **Rendering artifacts.** Set `"webgl": false` in `config.json`.
 - **`npm install` complains about install scripts.** npm 11 runs them only for packages listed in `allowScripts` in `package.json`. If npm names a new package, run `npm approve-scripts` and install again.
