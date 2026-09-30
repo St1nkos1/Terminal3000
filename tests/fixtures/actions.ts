@@ -41,7 +41,8 @@ export function setupActions(tabs: TabInfo[], view: Partial<ViewState> = {}, opt
     homeDir: 'C:\\Users\\u'
   }
   const store = createStore<UiState>(initialUiState(init, 0))
-  let nextTab: TabInfo | null = null
+  // вкладки, которые по очереди вернёт createTab
+  const nextTabs: TabInfo[] = []
   const api = {
     updateView: (v: ViewState) => {
       calls.updateView.push(v)
@@ -49,9 +50,8 @@ export function setupActions(tabs: TabInfo[], view: Partial<ViewState> = {}, opt
     // как main: состояние с новой вкладкой приходит раньше ответа createTab
     createTab: async (req: NewTabRequest) => {
       calls.createTab.push(req)
-      const t = nextTab
+      const t = nextTabs.shift()
       if (!t) return null
-      nextTab = null
       actions.onState({ ...store.get().app, tabs: [...store.get().app.tabs, t] })
       return t.id
     },
@@ -100,8 +100,8 @@ export function setupActions(tabs: TabInfo[], view: Partial<ViewState> = {}, opt
     store,
     actions,
     calls,
-    willCreate: (t: TabInfo) => {
-      nextTab = t
+    willCreate: (...t: TabInfo[]) => {
+      nextTabs.push(...t)
     }
   }
 }

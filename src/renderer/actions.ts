@@ -1,12 +1,13 @@
 import { isBusyClaude } from '../shared/busy'
 import type { T3000Api } from '../shared/ipc'
-import { layoutTabs, removeTab, setSizes } from '../shared/layout'
+import { containsTab, layoutTabs, removeTab, setSizes } from '../shared/layout'
+import { cwdKey } from '../shared/text'
 import type { ActionId, AppConfig, AppState, BannerCommand, NewTabRequest, SplitDir, ViewState } from '../shared/types'
-import { fixView, placeTab, showTab } from '../shared/view'
+import { attachConsole, fixView, placeTab, showWithConsole } from '../shared/view'
 import { buildKeymap } from './keybindings'
 import type { PaletteCommand, PaletteMode } from './palette-pages'
 import type { Store, UiState } from './store'
-import { consoleStep, mruStep, nextAttention, panelOrder, touchMru } from './tab-order'
+import { consoleStep, mruStep, nextAttention, panelOrder, projectConsole, touchMru } from './tab-order'
 
 export interface ViewsControl {
   focus(tab: string): void
@@ -52,17 +53,58 @@ export function createActions(d: ActionDeps) {
     setView(store.get().view)
   }
 
-  function activate(tab: string, opts: { mru?: boolean } = {}): void {
+  // папки, для которых консоль под Claude уже создаётся
+  const creatingConsole = new Set<string>()
+  // Claude, вставший на экран во время Ctrl+Tab без консоли: её создаст endCycle
+  let consoleAfterCycle: string | null = null
+
+  // Вкладка на экран; Claude без явного сплита встаёт парой с консолью своего проекта.
+  // true — вкладка пришла на экран, а консоли у проекта нет: её нужно создать
+  function show(tab: string, split?: SplitDir): boolean {
+    const s = store.get()
+    const info = s.app.tabs.find((t) => t.id === tab)
+    if (split || !info || info.kind !== 'claude' || !s.config.consoleUnderClaude) {
+      setView(placeTab(s.view, tab, split))
+      return false
+    }
+    const onScreen = containsTab(s.view.layout, tab)
+    const shell = projectConsole(s.app.tabs, info)
+    const shells = new Set(s.app.tabs.filter((t) => t.kind === 'shell').map((t) => t.id))
+    setView(showWithConsole(s.view, tab, shell?.id ?? null, (t) => shells.has(t)))
+    return !onScreen && !shell
+  }
+
+  // Консоль встаёт под вкладкой, если та ещё на экране; на папку заказывается одна
+  async function createConsole(tab: string): Promise<void> {
+    const info = store.get().app.tabs.find((t) => t.id === tab)
+    if (!info) return
+    const key = cwdKey(info.cwd)
+    if (creatingConsole.has(key)) return
+    creatingConsole.add(key)
+    try {
+      const id = await api.createTab({ cwd: info.cwd, kind: 'shell' })
+      if (id) setView(attachConsole(store.get().view, tab, id))
+    } finally {
+      creatingConsole.delete(key)
+    }
+  }
+
+  // cycle: Ctrl+Tab — консоль создаётся, только когда отпустят Ctrl,
+  // иначе один проход по вкладкам запустит по PowerShell на каждый проект
+  function activate(tab: string, opts: { mru?: boolean; cycle?: boolean } = {}): void {
     if (!store.get().app.tabs.some((t) => t.id === tab)) return
-    setView(showTab(store.get().view, tab))
+    const needsConsole = show(tab)
     if (opts.mru !== false) store.set({ mru: touchMru(store.get().mru, tab) })
     views.focus(tab)
+    if (opts.cycle) consoleAfterCycle = needsConsole ? tab : null
+    else if (needsConsole) void createConsole(tab)
   }
 
   function place(tab: string, split?: SplitDir): void {
-    setView(placeTab(store.get().view, tab, split))
+    const needsConsole = show(tab, split)
     store.set({ mru: touchMru(store.get().mru, tab) })
     views.focus(tab)
+    if (needsConsole) void createConsole(tab)
   }
 
   async function openTab(req: NewTabRequest, split?: SplitDir): Promise<string | null> {
@@ -234,7 +276,7 @@ export function createActions(d: ActionDeps) {
     const r = mruStep(s.mru, s.mruCycle, dir)
     if (!r) return
     store.set({ mruCycle: r.cycle })
-    activate(r.tab, { mru: false })
+    activate(r.tab, { mru: false, cycle: true })
   }
 
   function endCycle(): void {
@@ -242,6 +284,9 @@ export function createActions(d: ActionDeps) {
     if (!s.mruCycle) return
     const active = s.view.activeTab
     store.set({ mruCycle: null, mru: active ? touchMru(s.mru, active) : s.mru })
+    const pending = consoleAfterCycle
+    consoleAfterCycle = null
+    if (pending && pending === active) void createConsole(pending)
   }
 
   async function toggleConsole(): Promise<void> {

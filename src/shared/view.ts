@@ -1,5 +1,5 @@
 import { containsTab, layoutTabs, normalizeLayout, pane, replaceTab, splitTab } from './layout'
-import type { SplitDir, ViewState } from './types'
+import type { LayoutNode, SplitDir, ViewState } from './types'
 
 // То же правило, что у Controller.fixView (Task 12)
 export function fixView(view: ViewState, known: readonly string[]): ViewState {
@@ -28,4 +28,50 @@ export function placeTab(view: ViewState, tab: string, split?: SplitDir): ViewSt
   const target = targetPane(view)
   if (!split || !view.layout || !target || containsTab(view.layout, tab)) return showTab(view, tab)
   return { ...view, layout: splitTab(view.layout, target, tab, split), activeTab: tab }
+}
+
+type IsShell = (tab: string) => boolean
+
+// Пара «Claude над консолью»: две панели одна под другой, снизу консоль, сверху не консоль
+function isPair(node: LayoutNode, isShell: IsShell): boolean {
+  if (node.type !== 'split' || node.dir !== 'column' || node.children.length !== 2) return false
+  const [top, bottom] = node.children
+  return top.type === 'pane' && bottom.type === 'pane' && !isShell(top.tab) && isShell(bottom.tab)
+}
+
+// Место под вкладку: пара, в которую входит панель target, иначе сама панель
+function slotOf(node: LayoutNode, target: string, isShell: IsShell): LayoutNode | null {
+  if (node.type === 'pane') return node.tab === target ? node : null
+  if (isPair(node, isShell) && containsTab(node, target)) return node
+  for (const child of node.children) {
+    const slot = slotOf(child, target, isShell)
+    if (slot) return slot
+  }
+  return null
+}
+
+function replaceNode(node: LayoutNode, from: LayoutNode, to: LayoutNode): LayoutNode {
+  if (node === from) return to
+  if (node.type === 'pane') return node
+  return { ...node, children: node.children.map((c) => replaceNode(c, from, to)) }
+}
+
+// Claude-вкладка встаёт на экран вместе с консолью своего проекта снизу; shell: null — консоли пока нет
+export function showWithConsole(view: ViewState, tab: string, shell: string | null, isShell: IsShell): ViewState {
+  if (containsTab(view.layout, tab)) return { ...view, activeTab: tab }
+  const target = targetPane(view)
+  const slot = view.layout && target ? slotOf(view.layout, target, isShell) : null
+  // консоль, которая уже стоит на экране вне этого места, не дублируем
+  const below = shell !== null && (!containsTab(view.layout, shell) || containsTab(slot, shell)) ? shell : null
+  const sizes = slot?.type === 'split' ? slot.sizes : [0.5, 0.5]
+  const next: LayoutNode = below
+    ? { type: 'split', dir: 'column', sizes, children: [pane(tab), pane(below)] }
+    : pane(tab)
+  return { ...view, layout: view.layout && slot ? replaceNode(view.layout, slot, next) : next, activeTab: tab }
+}
+
+// Созданная консоль встаёт под вкладкой, если та ещё на экране; активная вкладка не меняется
+export function attachConsole(view: ViewState, tab: string, shell: string): ViewState {
+  if (!view.layout || !containsTab(view.layout, tab) || containsTab(view.layout, shell)) return view
+  return { ...view, layout: splitTab(view.layout, tab, shell, 'column') }
 }

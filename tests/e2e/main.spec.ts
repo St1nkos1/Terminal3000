@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { HookServer } from '../../src/main/hook-server'
 import type { T3000Api } from '../../src/shared/ipc'
 import type { HookEvent } from '../../src/shared/types'
@@ -182,6 +182,58 @@ test('правый клик по группе: меню у курсора, но�
     await expect(menu).toHaveCount(0)
     await expect.poll(async () => (await tabsOf(page)).tabs.length).toBe(3)
     expect((await tabsOf(page)).tabs[2]).toMatchObject({ cwd: dirs.project, kind: 'shell' })
+  } finally {
+    await app.close()
+  }
+})
+
+test('Claude встаёт на экран с консолью своего проекта снизу', async () => {
+  const dirs = makeDirs()
+  const base = dirname(dirs.project)
+  const second = join(base, 'Второй')
+  mkdirSync(second)
+  // вместо Claude — долгая команда: вкладка остаётся Claude-вкладкой
+  writeTestConfig(dirs.data, { claudeCommand: 'Start-Sleep -Seconds 600', projectRoots: [base] })
+  const app = await launchApp(dirs, [dirs.project])
+  const col = (a: string, b: string) => ({
+    type: 'split',
+    dir: 'column',
+    sizes: [0.5, 0.5],
+    children: [
+      { type: 'pane', tab: a },
+      { type: 'pane', tab: b }
+    ]
+  })
+  try {
+    const page = await app.firstWindow()
+    const shell1 = (await tabsOf(page)).tabs[0].id
+
+    // консоль у проекта уже есть — встаёт под новым Claude
+    await page.locator('.group-head').click({ button: 'right' })
+    await page.locator('.context-menu').getByText('Claude: новый разговор').click()
+    await expect.poll(async () => (await tabsOf(page)).tabs.length).toBe(2)
+    const claude1 = (await tabsOf(page)).tabs[1]
+    expect(claude1).toMatchObject({ cwd: dirs.project, kind: 'claude' })
+    await expect.poll(async () => (await tabsOf(page)).view.layout).toEqual(col(claude1.id, shell1))
+
+    // в папке без консоли: консоль создаётся и встаёт под Claude вместо чужой
+    await page.keyboard.press('Control+Shift+T')
+    await page.locator('.palette-input').fill('Второй')
+    await expect(page.locator('.palette-item.current')).toContainText('Второй')
+    await page.keyboard.press('Enter')
+    await expect(page.locator('.palette-item.current')).toContainText('Claude: новый разговор')
+    await page.keyboard.press('Enter')
+    await expect.poll(async () => (await tabsOf(page)).tabs.length).toBe(4)
+    const r = await tabsOf(page)
+    const claude2 = r.tabs.find((t) => t.cwd === second && t.kind === 'claude')
+    const shell2 = r.tabs.find((t) => t.cwd === second && t.kind === 'shell')
+    expect(claude2 && shell2).toBeTruthy()
+    await expect.poll(async () => (await tabsOf(page)).view.layout).toEqual(col(claude2!.id, shell2!.id))
+    expect((await tabsOf(page)).view.activeTab).toBe(claude2!.id)
+
+    // обратно к первому Claude — возвращается его пара
+    await page.locator('.tab-row', { hasText: 'claude' }).first().click()
+    await expect.poll(async () => (await tabsOf(page)).view.layout).toEqual(col(claude1.id, shell1))
   } finally {
     await app.close()
   }

@@ -10,7 +10,7 @@ Running several Claude Code sessions side by side in plain PowerShell windows ge
 
 - **Sidebar** with all tabs grouped by project. You can see which Claude is working, which is waiting for an answer or permission, and which has finished. Right-click a group to start a new Claude session or console in its folder.
 - **Notifications and sound** when Claude is waiting for you or has finished in a tab you aren't looking at. Clicking a notification opens the tab.
-- **Splits**: several sessions and a project console on one screen.
+- **Splits**: several sessions and a project console on one screen. A Claude tab comes on screen with its project's console below it; ``Ctrl+` `` hides the console.
 - **Palette** (`Ctrl+Shift+P`): tabs, projects, past Claude conversations and commands.
 - **Restore**: after a restart you get the same tabs and splits, and Claude continues the same conversations via `claude --resume`.
 - Your PowerShell profile with your keys is loaded in every tab. Terminal3000 never reads it.
@@ -93,6 +93,7 @@ Settings live in `%APPDATA%\Terminal3000\config.json`. The file is created on fi
 | `font` | `Cascadia Mono, Consolas, monospace`, 14 | Terminal font |
 | `scrollback` | `10000` | Lines of scrollback history |
 | `webgl` | `true` | `false` renders without WebGL, if you see artifacts |
+| `consoleUnderClaude` | `true` | A Claude tab comes on screen with its project's console below it (created if missing); `false` turns this off |
 | `status.silenceMs` | `4000` | Milliseconds of silence before "working" turns into "idle" |
 | `notifications` | all `true`, `doNotDisturb: false` | `toast`, `flashFrame`, `badge`, `messagePreview` (Claude's text in the notification), `doNotDisturb` |
 | `sounds` | `faceit`, `faceit`, `low`, volume `0.8` | Sounds for `waiting`, `done`, `crashed`, and `volume` from 0 to 1 |

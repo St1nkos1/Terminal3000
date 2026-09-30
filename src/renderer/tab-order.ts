@@ -112,7 +112,13 @@ export type ConsoleStep =
   | { type: 'create'; cwd: string }
   | null
 
-// Ctrl+`: консоль проекта — вкладка-консоль той же папки, что активная
+// Консоль проекта — вкладка-консоль той же папки
+export function projectConsole(tabs: TabInfo[], tab: TabInfo): TabInfo | undefined {
+  const key = cwdKey(tab.cwd)
+  return tabs.find((t) => t.id !== tab.id && t.kind === 'shell' && cwdKey(t.cwd) === key)
+}
+
+// Ctrl+`: показать или скрыть консоль проекта активной вкладки
 export function consoleStep(tabs: TabInfo[], layout: LayoutNode | null, activeTab: string | null): ConsoleStep {
   const active = tabs.find((t) => t.id === activeTab)
   if (!active) return null
@@ -124,7 +130,7 @@ export function consoleStep(tabs: TabInfo[], layout: LayoutNode | null, activeTa
     const above = sameProject.find((t) => shown.has(t.id))
     return above ? { type: 'hide', tab: active.id, back: above.id } : null
   }
-  const shellTab = sameProject.find((t) => t.kind === 'shell')
+  const shellTab = projectConsole(tabs, active)
   if (!shellTab) return { type: 'create', cwd: active.cwd }
   if (shown.has(shellTab.id)) return { type: 'hide', tab: shellTab.id, back: active.id }
   return { type: 'show', tab: shellTab.id }

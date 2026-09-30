@@ -15,6 +15,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   font: { family: 'Cascadia Mono, Consolas, monospace', size: 14 },
   scrollback: 10000,
   webgl: true,
+  consoleUnderClaude: true,
   status: { silenceMs: 4000 },
   notifications: { toast: true, flashFrame: true, badge: true, messagePreview: true, doNotDisturb: false },
   sounds: { volume: 0.8, waiting: 'builtin:faceit', done: 'builtin:faceit', crashed: 'builtin:low' },
@@ -110,6 +111,7 @@ export function validateConfig(raw: unknown): { config: AppConfig; errors: strin
     },
     scrollback: r.field(raw, 'scrollback', 'scrollback', d.scrollback, num(100, 200000), 'число от 100 до 200000'),
     webgl: r.field(raw, 'webgl', 'webgl', d.webgl, bool, 'true или false'),
+    consoleUnderClaude: r.field(raw, 'consoleUnderClaude', 'consoleUnderClaude', d.consoleUnderClaude, bool, 'true или false'),
     status: {
       silenceMs: r.field(status, 'silenceMs', 'status.silenceMs', d.status.silenceMs, num(500, 600000), 'число от 500 до 600000')
     },

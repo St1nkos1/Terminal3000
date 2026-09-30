@@ -23,6 +23,7 @@ describe('DEFAULT_CONFIG', () => {
     expect(DEFAULT_CONFIG.shells.gitbash.file).toBe('C:/Program Files/Git/bin/bash.exe')
     expect(DEFAULT_CONFIG.restore).toBe('lazy')
     expect(DEFAULT_CONFIG.webgl).toBe(true)
+    expect(DEFAULT_CONFIG.consoleUnderClaude).toBe(true)
     expect(DEFAULT_CONFIG.status.silenceMs).toBe(4000)
     expect(DEFAULT_CONFIG.sounds).toEqual({
       volume: 0.8,
@@ -53,6 +54,16 @@ describe('validateConfig', () => {
     expect(config.sounds.volume).toBe(0.8)
     expect(errors).toHaveLength(3)
     expect(errors[0]).toMatch(/^restore: /)
+  })
+
+  it('consoleUnderClaude: false выключает консоль под Claude, не булево — ошибка', () => {
+    expect(validateConfig({ consoleUnderClaude: false })).toEqual({
+      config: { ...DEFAULT_CONFIG, consoleUnderClaude: false },
+      errors: []
+    })
+    const { config, errors } = validateConfig({ consoleUnderClaude: 'yes' })
+    expect(config.consoleUnderClaude).toBe(true)
+    expect(errors).toEqual([expect.stringMatching(/^consoleUnderClaude: /)])
   })
 
   it('свои оболочки добавляются к встроенным', () => {

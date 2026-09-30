@@ -149,6 +149,8 @@ export interface AppConfig {
   font: { family: string; size: number }
   scrollback: number
   webgl: boolean
+  // Claude-вкладка встаёт на экран вместе с консолью своего проекта снизу
+  consoleUnderClaude: boolean
   status: { silenceMs: number }
   notifications: {
     toast: boolean
