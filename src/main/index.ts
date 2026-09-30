@@ -383,6 +383,8 @@ async function start(): Promise<void> {
       title: 'Terminal3000',
       backgroundColor: '#1e1e1e',
       show: false,
+      // в сборке иконку даёт exe, в режиме разработки — файл из build/
+      ...(app.isPackaged ? {} : { icon: join(app.getAppPath(), 'build', 'icon.ico') }),
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         contextIsolation: true,

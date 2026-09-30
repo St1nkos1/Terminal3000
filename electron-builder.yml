@@ -1,0 +1,32 @@
+appId: com.st1nkos.terminal3000
+productName: Terminal3000
+copyright: Copyright © 2026 st1nkos
+directories:
+  output: release
+  buildResources: build
+files:
+  - out/**/*
+  - package.json
+# node-pty уже содержит N-API бинарники под win32-x64 и win32-arm64, пересборка не нужна
+npmRebuild: false
+# conpty.dll, OpenConsole.exe и pty.node не работают из asar
+asarUnpack:
+  - node_modules/node-pty/**
+extraResources:
+  - from: hooks
+    to: hooks
+  - from: assets/sounds
+    to: sounds
+    filter:
+      - faceit-accept.mp3
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: Terminal3000

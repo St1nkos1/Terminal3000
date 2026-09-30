@@ -1,7 +1,7 @@
 # Terminal3000 — дизайн
 
 - **Дата:** 2026-09-28
-- **Статус:** на ревью у автора
+- **Статус:** согласован и реализован по плану `docs/superpowers/plans/2026-09-28-terminal3000.md`
 - **Репозиторий:** `github.com/st1nkos/Terminal3000` (публичный, MIT)
 
 ## 1. Зачем
@@ -87,20 +87,22 @@ Terminal3000 — своё десктоп-приложение-терминал �
 | `Ctrl+Shift+W` | Закрыть вкладку (с подтверждением, если процесс ещё жив) |
 | `Ctrl+Shift+M` | «Не беспокоить»: уведомления и звук выключены, статусы продолжают работать |
 
+Сочетания сравниваются по физической клавише (`event.code`), поэтому работают в любой раскладке. Сочетание без `Ctrl` или `Alt` допускается только для `F1…F24`, иначе оно перехватило бы обычный ввод. «Не беспокоить» действует до перезапуска приложения, начальное значение — `notifications.doNotDisturb`.
+
 ### 4.4. Ввод и вывод
 
 - **`Ctrl+C`** при выделенном тексте копирует, без выделения отправляет прерывание в процесс.
 - **Вставка.** `Ctrl+V` и правая кнопка мыши вставляют текст в режиме bracketed paste. Если в буфере обмена картинка, а текста нет, в процесс уходит сырой `Ctrl+V` (`\x16`), чтобы Claude сам вставил скриншот.
 - **`Shift+Enter`** отправляет `\x1b\r`: это перенос строки в поле ввода Claude, как после `/terminal-setup` в VS Code.
 - **Перетаскивание файла** в окно вставляет путь в кавычках.
-- **Прочее.** Кликабельные ссылки, история прокрутки на 10 000 строк (настраивается), рендер через WebGL с откатом на canvas, Unicode 11 (кириллица и эмодзи).
+- **Прочее.** Кликабельные ссылки, история прокрутки на 10 000 строк (настраивается), рендер через WebGL с откатом на DOM-рендерер (аддон canvas несовместим с xterm 6; WebGL выключается опцией `webgl`), Unicode 11 (кириллица и эмодзи).
 - **Внешний вид.** Тёмная тема, шрифт по умолчанию `Cascadia Mono, Consolas, monospace` размером 14.
 
 ## 5. Архитектура
 
 ### 5.1. Стек
 
-TypeScript, Electron 44, `electron-vite`, `@xterm/xterm` 6 с аддонами (`fit`, `webgl`, `search`, `web-links`, `unicode11`), `node-pty` 1.1 (готовые N-API бинарники для `win32-x64` и `win32-arm64`, свои `conpty.dll` и `OpenConsole.exe`), React для панели и палитры, Vitest, Playwright (Electron), `electron-builder` (NSIS-установщик).
+TypeScript, Electron 44, `electron-vite`, `@xterm/xterm` 6 с аддонами (`fit`, `webgl`, `search`, `web-links`, `unicode11`), `node-pty` 1.1 (готовые N-API бинарники для `win32-x64` и `win32-arm64`, свои `conpty.dll` и `OpenConsole.exe`), React для панели и палитры (без `@vitejs/plugin-react`: JSX собирает esbuild), Vitest, Playwright (Electron), `electron-builder` (NSIS-установщик).
 
 ### 5.2. Процессы и поток данных
 
@@ -137,6 +139,10 @@ TypeScript, Electron 44, `electron-vite`, `@xterm/xterm` 6 с аддонами (
 | `notifier.ts` | Уведомления Windows, мигание окна, бейдж на иконке в панели задач. Звуком управляет renderer по команде | Electron |
 | `project-index.ts` | Список проектов и прошлых разговоров Claude | fs |
 | `persistence.ts` | Атомарное чтение и запись `workspace.json` | fs |
+| `controller.ts` | Жизненный цикл вкладок: запуск, перезапуск, восстановление, ввод, вид для `workspace.json` и правило видимости | session-store, pty-manager, launch |
+| `osc.ts`, `ring-buffer.ts` | Поиск OSC 7777 в потоке pty (в том числе разрезанного между чанками), кольцевой буфер вывода | — |
+| `banners.ts` | Баннеры про хуки, сервер статусов и повреждённые файлы | — |
+| `paths.ts`, `ipc-guards.ts`, `log.ts`, `sound-file.ts` | Пути данных, проверка аргументов IPC, лог с ротацией, чтение файлов звука по конфигу | fs |
 | `index.ts` | Сборка всего вместе, окно, IPC, единственный экземпляр, аргументы командной строки | всё выше |
 
 `shared/` хранит типы и контракт IPC, общие для main, preload и renderer. `hooks/t3000-hook.js` — отдельный скрипт на чистом Node без зависимостей.
@@ -170,6 +176,7 @@ TypeScript, Electron 44, `electron-vite`, `@xterm/xterm` 6 с аддонами (
   "restore": "lazy",                  // "lazy" | "eager"
   "font": { "family": "Cascadia Mono, Consolas, monospace", "size": 14 },
   "scrollback": 10000,
+  "webgl": true,                      // false — DOM-рендерер вместо WebGL
   "status": { "silenceMs": 4000 },
   "notifications": {
     "toast": true, "flashFrame": true, "badge": true,
@@ -180,7 +187,7 @@ TypeScript, Electron 44, `electron-vite`, `@xterm/xterm` 6 с аддонами (
     "volume": 0.8,
     "waiting": "builtin:faceit",      // builtin:faceit | builtin:alert | builtin:chime | builtin:low
     "done":    "builtin:faceit",      // или путь к своему файлу; относительный — от %APPDATA%\Terminal3000\
-    "crashed": "builtin:low"
+    "crashed": "builtin:low"          // "" или "none" — без звука; неизвестный builtin:… играет как alert
   },
   "keybindings": { "palette": "Ctrl+Shift+P", "newTab": "Ctrl+Shift+T" }  // полный список действий и значений по умолчанию — §4.3
 }
@@ -225,13 +232,14 @@ TypeScript, Electron 44, `electron-vite`, `@xterm/xterm` 6 с аддонами (
 - **Вкладка Claude** запускается **через PowerShell**, чтобы Claude получил окружение из профиля, в том числе ключи:
 
   ```
-  powershell.exe -NoLogo -NoExit -Command "& { claude --resume '<id>'; $c = $LASTEXITCODE;
+  powershell.exe -NoLogo -NoExit -Command "& { $global:LASTEXITCODE = $null; claude --resume '<id>'; $ok = $?;
+    $c = $LASTEXITCODE; if ($null -eq $c) { $c = [int](-not $ok) };
     [Console]::Write([char]27 + ']7777;t3000;claude-exit;' + $c + [char]7) }"
   ```
 
-  Для нового разговора вместо `--resume '<id>'` ничего не передаётся, для «продолжить последний» передаётся `--continue`. Благодаря `-NoExit` после выхода из Claude вкладка остаётся консолью в папке проекта. Служебная последовательность OSC 7777 сообщает код выхода `claude`: xterm перехватывает её через `parser.registerOscHandler`, на экран она не попадает, а в main уходит событие `claude-exit`.
+  Для нового разговора вместо `--resume '<id>'` ничего не передаётся, для «продолжить последний» передаётся `--continue`. Благодаря `-NoExit` после выхода из Claude вкладка остаётся консолью в папке проекта. Служебная последовательность OSC 7777 сообщает код выхода `claude`. Её находит main в потоке pty (`osc.ts`), поэтому `claude-exit` приходит и от скрытых вкладок; renderer только глушит её через `parser.registerOscHandler`, на экран она не попадает. `$LASTEXITCODE` сбрасывается перед запуском: профиль мог оставить там 0 от другой программы. Если `claude` не нашёлся, код берётся из `$?`. Id разговора с символами вне `[A-Za-z0-9_.-]` не подставляется: вкладка начинает новый разговор.
 - **cmd и Git Bash** запускаются как обычные консоли. Вкладку Claude с ними не создаём: для Claude всегда используется PowerShell.
-- **`claude`, запущенный вручную в любой консоли**, тоже отслеживается: хук получает `T3000_TAB_ID` из окружения вкладки. По первому `SessionStart` вкладка становится Claude-вкладкой, а при восстановлении запускается через обёртку выше.
+- **`claude`, запущенный вручную в любой консоли**, тоже отслеживается: хук получает `T3000_TAB_ID` из окружения вкладки. По первому `SessionStart` вкладка становится Claude-вкладкой, а при восстановлении запускается через обёртку выше. `SessionStart` главной сессии также меняет папку вкладки на `cwd` из хука: `claude --resume` ищет разговор по папке запуска.
 
 ## 8. Статусы и хуки
 
@@ -281,19 +289,21 @@ TypeScript, Electron 44, `electron-vite`, `@xterm/xterm` 6 с аддонами (
 | Событие | Переход |
 |---|---|
 | процесс вкладки Claude запущен | → `starting` |
-| `SessionStart` (любой `source`) | → `idle`; для консольной вкладки ещё и `kind: claude` |
+| `SessionStart` | → `idle`; для консольной вкладки ещё и `kind: claude`; при `source: compact` статус не меняется (сжатие идёт посреди работы); папка вкладки становится `cwd` из хука |
 | `UserPromptSubmit`, `PostToolUse` | → `working` |
-| `Notification`: `permission_prompt`, `elicitation_dialog`, `elicitation_url_dialog`, `agent_needs_input` | → `waiting` |
+| `Notification`: `permission_prompt`, `elicitation_dialog`, `elicitation_url_dialog`, `agent_needs_input` | → `waiting`, в том числе когда разрешение просит сабагент |
 | `Notification`: `elicitation_response`, `elicitation_complete` | → `working` |
-| `Notification`: `idle_prompt` | если `working` или `waiting` → `idle` (без уведомления); иначе без изменений |
+| `Notification`: `idle_prompt` | если `working` → `idle` (без уведомления); `waiting` не снимается, чтобы не потерять запрос разрешения |
 | `Notification`: прочие (`auth_success`, `quota_*`, `agent_completed`) | без изменений |
 | `Stop` | → `done`, если вкладка не видна в активном окне; иначе → `idle` |
-| `SubagentStop` и события с `agent_id` | не меняют статус главной сессии (кроме `PostToolUse` → `working`) |
-| `SessionEnd` | помечается «ожидаем `claude-exit`» |
-| `claude-exit` с кодом 0 | → `shell` |
+| `SubagentStop` и события с `agent_id` | не меняют статус главной сессии (кроме `PostToolUse` → `working` и запросов разрешения → `waiting`); `kind` и `claudeSessionId` не трогают |
+| `SessionEnd` с `reason ≠ clear` | → `shell` и `kind: shell`, даже если `claude-exit` не придёт (Claude запущен вручную); после `/clear` сразу придёт `SessionStart` |
+| `claude-exit` с кодом 0 | → `shell` и `kind: shell`: вкладка восстанавливается консолью, как её оставили |
 | `claude-exit` с кодом ≠ 0 | → `crashed` |
 | процесс вкладки (оболочка) завершился | вкладка остаётся открытой с текстом «Процесс завершён (код N). Enter — перезапустить»; консоль → `shell`, Claude-вкладка → `crashed` |
 | вкладка стала видимой в активном окне | `done` → `idle` |
+
+При запуске процесса, `claude-exit`, выходе процесса и переходе в консоль запоминается `lastTs = now`, поэтому поздние хуки старого процесса не меняют новую вкладку. Автоответы терминала (focus reporting, ответы DA и CPR) вводом пользователя не считаются.
 
 **Запасные правила** на случай, когда Claude Code не присылает хук. Прерывание через `Esc` не вызывает `Stop`, отказ в разрешении тоже не порождает события.
 
@@ -306,8 +316,8 @@ TypeScript, Electron 44, `electron-vite`, `@xterm/xterm` 6 с аддонами (
 ## 9. Уведомления и звук
 
 - **Когда.** При переходе в `waiting`, `done` или `crashed`, и только если вкладка не видна в активном окне. Повтор того же статуса в той же вкладке не уведомляет. «Не беспокоить» отключает уведомление Windows, звук и мигание, а статусы и бейдж продолжают работать.
-- **Уведомление Windows.** Заголовок «`<проект>` · ждёт разрешения / готово / упала». Текст: `message` из `Notification` или начало `last_assistant_message` из `Stop`, если `notifications.messagePreview` включён. Клик открывает окно и переключает на вкладку. Приложение задаёт `AppUserModelId` `com.st1nkos.terminal3000`. В режиме разработки Windows может подписывать уведомления как «Electron»; это нормально и описано в README.
-- **Звук.** По умолчанию на «ждёт» и «готово» играет `builtin:faceit` (FACEIT accept), на «упала» — синтезированный `low`. Синтезированные `alert` и `chime` доступны как альтернатива без файлов. Для любого события можно указать путь к своему файлу. Играет один звук за раз: новый прерывает предыдущий. Звук обрывается, когда открывают вкладку, к которой он относится. Если файл не найден, играет встроенный сигнал, а в лог пишется предупреждение.
+- **Уведомление Windows.** Заголовок «`<проект>` · ждёт разрешения / готово / упала». Текст: `message` из `Notification` или начало `last_assistant_message` из `Stop`, если `notifications.messagePreview` включён. Текст сворачивается в одну строку и обрезается до 200 символов. Клик открывает окно и переключает на вкладку. Приложение задаёт `AppUserModelId` `com.st1nkos.terminal3000`. В режиме разработки Windows может подписывать уведомления как «Electron»; это нормально и описано в README.
+- **Звук.** По умолчанию на «ждёт» и «готово» играет `builtin:faceit` (FACEIT accept), на «упала» — синтезированный `low`. Синтезированные `alert` и `chime` доступны как альтернатива без файлов. Для любого события можно указать путь к своему файлу. Играет один звук за раз: новый прерывает предыдущий. Звук обрывается, когда открывают вкладку, к которой он относится. Если файл не найден, играет встроенный сигнал, а в лог пишется предупреждение. Файл читает main по виду события (`loadSound(kind)`): renderer не может попросить произвольный путь. Пустая строка или `none` — без звука.
 - **Панель задач.** `flashFrame`, пока окно не активно. На иконке бейдж: красный кружок с числом вкладок в `waiting` и `done`, картинка рисуется на canvas. Бейдж пропадает, когда ждущих вкладок нет.
 
 ## 10. Восстановление и запуск приложения
@@ -324,7 +334,7 @@ TypeScript, Electron 44, `electron-vite`, `@xterm/xterm` 6 с аддонами (
 
 | Ситуация | Поведение |
 |---|---|
-| Упал или перезагрузился renderer | Main перезагружает окно. Процессы pty живы, вкладки подключаются заново и перерисовываются из кольцевого буфера в памяти |
+| Упал или перезагрузился renderer | Main перезагружает окно, не больше 3 раз в минуту. Процессы pty живы, вкладки подключаются заново и перерисовываются из кольцевого буфера в памяти |
 | Хук упал, завис или Claude его не вызвал | Хук асинхронный, всегда `exit 0`, с таймаутом. Статус подстраховывают запасные правила §8.4 |
 | Хуки не установлены или путь устарел | Баннер «Статусы недоступны — установить или обновить хуки?» |
 | `settings.json` не парсится | Не трогаем, показываем путь и текст ошибки |
@@ -369,16 +379,20 @@ TypeScript, Electron 44, `electron-vite`, `@xterm/xterm` 6 с аддонами (
 ```
 Terminal3000/
 ├─ src/
-│  ├─ main/        index.ts, config.ts, launch.ts, pty-manager.ts, status-machine.ts,
-│  │               session-store.ts, hook-server.ts, hook-installer.ts, notifier.ts,
-│  │               project-index.ts, persistence.ts
+│  ├─ main/        index.ts, config.ts, launch.ts, cli.ts, security.ts, paths.ts, pty-manager.ts,
+│  │               osc.ts, ring-buffer.ts, status-machine.ts, session-store.ts, controller.ts,
+│  │               banners.ts, hook-server.ts, hook-installer.ts, notifier.ts, sound-file.ts,
+│  │               project-index.ts, persistence.ts, ipc-guards.ts, log.ts
 │  ├─ preload/     index.ts
-│  ├─ renderer/    index.html, main.tsx, components/, terminal-view.ts, keybindings.ts, sounds.ts
-│  └─ shared/      types.ts, ipc.ts
+│  ├─ renderer/    index.html, main.tsx, components/, store.ts, context.ts, actions.ts, input.ts,
+│  │               terminal-view.ts, keybindings.ts, palette-pages.ts, fuzzy.ts, tab-order.ts,
+│  │               sounds.ts, badge.ts
+│  └─ shared/      types.ts, ipc.ts, layout.ts, view.ts, text.ts, sounds.ts
 ├─ hooks/          t3000-hook.js
+├─ scripts/        check-pty.cjs, make-icon.mjs
 ├─ tests/          unit/, integration/, e2e/, fixtures/
 ├─ assets/sounds/  faceit-accept.mp3 (© FACEIT, не под MIT — см. ниже)
-├─ build/          icon.ico
+├─ build/          icon.ico (рисует scripts/make-icon.mjs)
 ├─ docs/           superpowers/specs/, superpowers/plans/, manual-checklist.md
 ├─ README.md  LICENSE (MIT, st1nkos, 2026)  .gitignore  .gitattributes
 └─ package.json  electron.vite.config.ts  electron-builder.yml  tsconfig*.json
