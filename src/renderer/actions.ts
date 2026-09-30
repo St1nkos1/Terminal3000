@@ -2,12 +2,22 @@ import { isBusyClaude } from '../shared/busy'
 import type { T3000Api } from '../shared/ipc'
 import { containsTab, layoutTabs, removeTab, setSizes } from '../shared/layout'
 import { cwdKey } from '../shared/text'
-import type { ActionId, AppConfig, AppState, BannerCommand, NewTabRequest, SplitDir, ViewState } from '../shared/types'
+import type {
+  ActionId,
+  AppConfig,
+  AppState,
+  BannerCommand,
+  Conversation,
+  NewTabRequest,
+  Project,
+  SplitDir,
+  ViewState
+} from '../shared/types'
 import { attachConsole, fixView, placeTab, showWithConsole } from '../shared/view'
 import { buildKeymap } from './keybindings'
 import type { PaletteCommand, PaletteMode } from './palette-pages'
 import type { Store, UiState } from './store'
-import { consoleStep, mruStep, nextAttention, panelOrder, projectConsole, touchMru } from './tab-order'
+import { consoleStep, conversationTab, mruStep, nextAttention, panelOrder, projectConsole, touchMru } from './tab-order'
 
 export interface ViewsControl {
   focus(tab: string): void
@@ -119,7 +129,8 @@ export function createActions(d: ActionDeps) {
     // диалог и строка поиска закрытой вкладки больше не нужны
     const overlay = s.overlay && 'tab' in s.overlay && !known.has(s.overlay.tab) ? null : s.overlay
     const search = s.search && known.has(s.search) ? s.search : null
-    store.set({ app, mru: s.mru.filter((t) => known.has(t)), overlay, search })
+    const historyTabs = s.historyTabs.filter((t) => known.has(t))
+    store.set({ app, mru: s.mru.filter((t) => known.has(t)), overlay, search, historyTabs })
     views.prune(known)
     // закрытую вкладку убираем из раскладки
     refreshView()
@@ -146,6 +157,34 @@ export function createActions(d: ActionDeps) {
     const groups = v.sidebar.collapsedGroups
     const collapsedGroups = groups.includes(key) ? groups.filter((g) => g !== key) : [...groups, key]
     setView({ ...v, sidebar: { ...v.sidebar, collapsedGroups } })
+  }
+
+  // номер последнего чтения разговоров: ответ старого чтения не затирает свежий
+  let projectsRead = 0
+
+  // Стрелка Claude-вкладки: при каждом раскрытии список разговоров перечитывается
+  async function toggleHistory(tab: string): Promise<void> {
+    const open = store.get().historyTabs
+    if (open.includes(tab)) {
+      store.set({ historyTabs: open.filter((t) => t !== tab) })
+      return
+    }
+    store.set({ historyTabs: [...open, tab] })
+    const n = ++projectsRead
+    let projects: Project[]
+    try {
+      projects = await api.listProjects()
+    } catch {
+      projects = []
+    }
+    if (n === projectsRead) store.set({ projects })
+  }
+
+  // Разговор, уже открытый во вкладке, второй раз не запускается
+  async function resumeConversation(c: Conversation): Promise<void> {
+    const open = conversationTab(store.get().app.tabs, c.sessionId)
+    if (open) activate(open.id)
+    else await openTab({ cwd: c.cwd, kind: 'claude', claude: 'resume', sessionId: c.sessionId })
   }
 
   function resizeSplit(path: number[], sizes: number[]): void {
@@ -393,6 +432,8 @@ export function createActions(d: ActionDeps) {
     closeTab,
     toggleSidebar,
     toggleGroup,
+    toggleHistory,
+    resumeConversation,
     resizeSplit,
     pickFolderFor,
     run,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../../src/main/config'
 import { layoutTabs, pane } from '../../src/shared/layout'
+import type { Project } from '../../src/shared/types'
 import { appState, setupActions } from '../fixtures/actions'
 import { makeTab } from '../fixtures/tabs'
 
@@ -162,6 +163,51 @@ describe('команды', () => {
     await actions.toggleConsole()
     expect(store.get().view.layout).toEqual(column('c', 's'))
     expect(calls.createTab).toHaveLength(1)
+  })
+
+  it('стрелка Claude-вкладки: раскрытие перечитывает разговоры, закрытая вкладка забывается', async () => {
+    const tabs = [makeTab('a', 'C:\\p', { kind: 'claude' }), makeTab('b', 'C:\\p', { kind: 'claude' })]
+    const projects: Project[] = [
+      { cwd: 'C:\\p', name: 'p', lastUsed: 1, conversations: [{ sessionId: 's1', cwd: 'C:\\p', title: 'x', mtime: 1 }] }
+    ]
+    const { store, actions, calls } = setupActions(tabs, { layout: pane('a'), activeTab: 'a' }, { projects })
+    expect(store.get().historyTabs).toEqual([])
+    expect(store.get().projects).toBeNull()
+    await actions.toggleHistory('a')
+    expect(store.get().historyTabs).toEqual(['a'])
+    expect(store.get().projects).toEqual(projects)
+    await actions.toggleHistory('b')
+    expect(store.get().historyTabs).toEqual(['a', 'b'])
+    // свернуть — без чтения
+    await actions.toggleHistory('a')
+    expect(store.get().historyTabs).toEqual(['b'])
+    expect(calls.other).toEqual(['listProjects', 'listProjects'])
+    actions.onState(appState([tabs[0]]))
+    expect(store.get().historyTabs).toEqual([])
+  })
+
+  it('разговоры не прочитались — список пустой, а не вечная загрузка', async () => {
+    const tabs = [makeTab('a', 'C:\\p', { kind: 'claude' })]
+    const { store, actions } = setupActions(tabs, { layout: pane('a'), activeTab: 'a' }, { projects: new Error('EACCES') })
+    await actions.toggleHistory('a')
+    expect(store.get().projects).toEqual([])
+  })
+
+  it('разговор из панели: уже открытый — переход на его вкладку, иначе новая вкладка с resume', async () => {
+    const tabs = [
+      makeTab('a', 'C:\\p', { kind: 'claude', claudeSessionId: 's1' }),
+      makeTab('b', 'C:\\p', { kind: 'claude', claudeSessionId: 's2' }),
+      makeTab('sh', 'C:\\p')
+    ]
+    const { store, actions, calls, willCreate } = setupActions(tabs, { layout: pane('a'), activeTab: 'a' })
+    await actions.resumeConversation({ sessionId: 's2', cwd: 'C:\\p', title: 'x', mtime: 0 })
+    expect(store.get().view.activeTab).toBe('b')
+    expect(calls.createTab).toEqual([])
+
+    willCreate(makeTab('n', 'C:\\p', { kind: 'claude', claudeSessionId: 's3' }))
+    await actions.resumeConversation({ sessionId: 's3', cwd: 'C:\\p', title: 'y', mtime: 0 })
+    expect(calls.createTab).toEqual([{ cwd: 'C:\\p', kind: 'claude', claude: 'resume', sessionId: 's3' }])
+    expect(store.get().view.activeTab).toBe('n')
   })
 
   it('поиск открывается и закрывается тем же сочетанием', () => {

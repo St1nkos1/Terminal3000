@@ -7,6 +7,7 @@ import {
   type AppState,
   type HooksState,
   type NewTabRequest,
+  type Project,
   type TabInfo,
   type ViewState
 } from '../../src/shared/types'
@@ -19,6 +20,8 @@ export interface SetupOptions {
   visible?: boolean
   pickFolder?: string | null
   app?: Partial<AppState>
+  // что вернёт listProjects; Error — чтение не удалось
+  projects?: Project[] | Error
 }
 
 export function setupActions(tabs: TabInfo[], view: Partial<ViewState> = {}, opts: SetupOptions = {}) {
@@ -66,6 +69,11 @@ export function setupActions(tabs: TabInfo[], view: Partial<ViewState> = {}, opt
     },
     renameTab: (tab: string, title: string) => {
       calls.renameTab.push([tab, title])
+    },
+    listProjects: async (): Promise<Project[]> => {
+      calls.other.push('listProjects')
+      if (opts.projects instanceof Error) throw opts.projects
+      return structuredClone(opts.projects ?? [])
     },
     pickFolder: async () => (opts.pickFolder === undefined ? 'D:\\new' : opts.pickFolder),
     toggleDoNotDisturb: () => {

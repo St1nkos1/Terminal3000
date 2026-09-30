@@ -118,6 +118,11 @@ export function projectConsole(tabs: TabInfo[], tab: TabInfo): TabInfo | undefin
   return tabs.find((t) => t.id !== tab.id && t.kind === 'shell' && cwdKey(t.cwd) === key)
 }
 
+// Claude-вкладка, в которой идёт этот разговор; после выхода Claude вкладка — уже консоль
+export function conversationTab(tabs: TabInfo[], sessionId: string): TabInfo | undefined {
+  return tabs.find((t) => t.kind === 'claude' && t.claudeSessionId === sessionId)
+}
+
 // Ctrl+`: показать или скрыть консоль проекта активной вкладки
 export function consoleStep(tabs: TabInfo[], layout: LayoutNode | null, activeTab: string | null): ConsoleStep {
   const active = tabs.find((t) => t.id === activeTab)

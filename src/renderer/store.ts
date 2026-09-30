@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { ActionId, AppConfig, AppState, InitData, ViewState } from '../shared/types'
+import type { ActionId, AppConfig, AppState, InitData, Project, ViewState } from '../shared/types'
 import { buildKeymap } from './keybindings'
 import type { PaletteMode } from './palette-pages'
 import type { MruCycle } from './tab-order'
@@ -30,6 +30,10 @@ export interface UiState {
   keymapErrors: string[]
   // баннеры, закрытые до конца сеанса (bannerKey)
   dismissedBanners: string[]
+  // Claude-вкладки с раскрытым списком прошлых разговоров
+  historyTabs: string[]
+  // проекты с разговорами для этих списков; null — ещё не прочитаны
+  projects: Project[] | null
 }
 
 export interface Store<T> {
@@ -76,6 +80,8 @@ export function initialUiState(init: InitData, now: number): UiState {
     search: null,
     keymap: map,
     keymapErrors: errors,
-    dismissedBanners: []
+    dismissedBanners: [],
+    historyTabs: [],
+    projects: null
   }
 }

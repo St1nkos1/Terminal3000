@@ -9,7 +9,7 @@ import type {
   SplitDir,
   TabInfo
 } from '../shared/types'
-import { panelOrder, paneTitle, STATUS_LABEL } from './tab-order'
+import { conversationTab, panelOrder, paneTitle, STATUS_LABEL } from './tab-order'
 
 export type PaletteMode =
   | { page: 'root' }
@@ -66,21 +66,28 @@ export interface PaletteData {
 
 // Сколько прошлых разговоров показывать на главной странице
 const ROOT_CONVERSATIONS = 300
+// Сколько разговоров проекта показывать в панели под Claude-вкладкой
+export const TAB_HISTORY = 10
 
 const CLAUDE_CONTINUE = 'Claude: продолжить последний'
 const CLAUDE_PICK = 'Claude: выбрать разговор…'
 
 const withSplit = (split?: SplitDir) => (split ? { split } : {})
 
-export function formatAgo(ms: number): string {
+// Короткий возраст для панели, где на счету каждый символ: «5 мин», «2 ч», «3 дн»
+export function formatAge(ms: number): string {
   const m = Math.floor(Math.max(0, ms) / 60000)
-  if (m < 1) return 'только что'
-  if (m < 60) return `${m} мин назад`
+  if (m < 1) return 'сейчас'
+  if (m < 60) return `${m} мин`
   const h = Math.floor(m / 60)
-  if (h < 24) return `${h} ч назад`
+  if (h < 24) return `${h} ч`
   const d = Math.floor(h / 24)
-  if (d < 30) return `${d} дн назад`
-  return `${Math.floor(d / 30)} мес назад`
+  if (d < 30) return `${d} дн`
+  return `${Math.floor(d / 30)} мес`
+}
+
+export function formatAgo(ms: number): string {
+  return ms < 60000 ? 'только что' : `${formatAge(ms)} назад`
 }
 
 // Проекты из индекса плюс папки открытых вкладок, которых в индексе нет
@@ -280,6 +287,27 @@ export function groupMenuItems(d: PaletteData, cwd: string): MenuItem[] {
     .filter((i) => i.key.startsWith('shell:'))
     .map((i, n): MenuItem => (n === 0 ? { ...toMenu(i), separator: true } : toMenu(i)))
   return [...claude, ...shells]
+}
+
+export interface TabHistory {
+  // openIn — вкладка, где разговор уже открыт
+  items: { conversation: Conversation; openIn: string | null }[]
+  // разговоров в проекте: столько покажет страница палитры
+  total: number
+  // в панель поместились не все
+  more: boolean
+}
+
+// Прошлые разговоры проекта под Claude-вкладкой, свежие первыми, без её собственного
+export function tabHistory(tab: TabInfo, projects: Project[], tabs: TabInfo[]): TabHistory {
+  const key = cwdKey(tab.cwd)
+  const all = projects.find((p) => cwdKey(p.cwd) === key)?.conversations ?? []
+  const others = all.filter((c) => c.sessionId !== tab.claudeSessionId)
+  return {
+    items: others.slice(0, TAB_HISTORY).map((c) => ({ conversation: c, openIn: conversationTab(tabs, c.sessionId)?.id ?? null })),
+    total: all.length,
+    more: others.length > TAB_HISTORY
+  }
 }
 
 function conversationItems(d: PaletteData, cwd: string, split?: SplitDir): PaletteItem[] {

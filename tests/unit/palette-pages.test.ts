@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../../src/main/config'
 import {
+  formatAge,
   formatAgo,
   groupMenuItems,
   mergeProjects,
   pageItems,
   pagePlaceholder,
+  TAB_HISTORY,
+  tabHistory,
   type PaletteData
 } from '../../src/renderer/palette-pages'
 import type { Project } from '../../src/shared/types'
@@ -199,5 +202,57 @@ describe('меню группы', () => {
     ]
     expect(brief(data({ projects: null }), 'C:\\Work\\MyWebShop')).toEqual(disabled)
     expect(brief(data(), 'E:\\Новая')).toEqual(disabled)
+  })
+})
+
+describe('tabHistory: прошлые разговоры под Claude-вкладкой', () => {
+  const cwd = 'C:\\Work\\Shop'
+  const conversations = Array.from({ length: 13 }, (_, i) => ({
+    sessionId: `c${i}`,
+    cwd,
+    title: `разговор ${i}`,
+    mtime: NOW - i * MIN
+  }))
+  const shop: Project = { cwd, name: 'Shop', lastUsed: NOW, conversations }
+  const ids = (h: ReturnType<typeof tabHistory>) => h.items.map((i) => i.conversation.sessionId)
+
+  it('formatAge: короткий возраст для панели', () => {
+    expect([10_000, 5 * MIN, 3 * 60 * MIN, 2 * 1440 * MIN, 65 * 1440 * MIN, -MIN].map(formatAge)).toEqual([
+      'сейчас',
+      '5 мин',
+      '3 ч',
+      '2 дн',
+      '2 мес',
+      'сейчас'
+    ])
+  })
+
+  it('разговоры проекта свежими первыми, без своего, не больше TAB_HISTORY', () => {
+    const tab = makeTab('a', 'c:/work/shop', { kind: 'claude', claudeSessionId: 'c0' })
+    const h = tabHistory(tab, [projects[0], shop], [tab])
+    expect(TAB_HISTORY).toBe(10)
+    expect(ids(h)).toEqual(['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'c10'])
+    expect(h.total).toBe(13)
+    expect(h.more).toBe(true)
+  })
+
+  it('разговор, открытый в другой Claude-вкладке, помечен ею; консоль после выхода Claude не в счёт', () => {
+    const tab = makeTab('a', cwd, { kind: 'claude' })
+    const other = makeTab('b', cwd, { kind: 'claude', claudeSessionId: 'c2' })
+    const exited = makeTab('c', cwd, { kind: 'shell', claudeSessionId: 'c3' })
+    const h = tabHistory(tab, [shop], [tab, other, exited])
+    expect(ids(h)).toEqual(['c0', 'c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9'])
+    expect(h.items.map((i) => i.openIn)).toEqual([null, null, 'b', null, null, null, null, null, null, null])
+  })
+
+  it('всё поместилось — ссылка на палитру не нужна; проекта нет в индексе — пусто', () => {
+    const tab = makeTab('a', 'C:\\Work\\MyWebShop', { kind: 'claude', claudeSessionId: 's2' })
+    expect(tabHistory(tab, projects, [tab])).toEqual({
+      items: [{ conversation: projects[0].conversations[1], openIn: null }],
+      total: 2,
+      more: false
+    })
+    const lonely = makeTab('z', 'E:\\Новая', { kind: 'claude' })
+    expect(tabHistory(lonely, projects, [lonely])).toEqual({ items: [], total: 0, more: false })
   })
 })

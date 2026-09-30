@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { HookServer } from '../../src/main/hook-server'
 import type { T3000Api } from '../../src/shared/ipc'
@@ -234,6 +234,64 @@ test('Claude встаёт на экран с консолью своего пр�
     // обратно к первому Claude — возвращается его пара
     await page.locator('.tab-row', { hasText: 'claude' }).first().click()
     await expect.poll(async () => (await tabsOf(page)).view.layout).toEqual(col(claude1.id, shell1))
+  } finally {
+    await app.close()
+  }
+})
+
+test('стрелка Claude-вкладки: прошлые разговоры проекта, возврат к разговору без дублей', async () => {
+  const dirs = makeDirs()
+  // вместо Claude — долгая команда; --resume и id блок скрипта пропускает мимо
+  writeTestConfig(dirs.data, { claudeCommand: '& { Start-Sleep -Seconds 600 }' })
+  const titles = ['почини валидацию формы', 'добавь тесты на корзину', 'почему падает сборка']
+  const convDir = join(dirs.claude, 'projects', 'test-project')
+  mkdirSync(convDir, { recursive: true })
+  titles.forEach((title, i) => {
+    const file = join(convDir, `s${i}.jsonl`)
+    writeFileSync(file, JSON.stringify({ type: 'user', cwd: dirs.project, message: { role: 'user', content: title } }) + '\n')
+    const t = Date.now() / 1000 - (i + 1) * 3600
+    utimesSync(file, t, t)
+  })
+  const sessions = (page: Page) =>
+    page.evaluate(async () => (await (window as unknown as Win).t3000.getInit()).state.tabs.map((t) => t.claudeSessionId))
+  const app = await launchApp(dirs, [dirs.project])
+  try {
+    const page = await app.firstWindow()
+    // у консоли стрелки нет
+    await expect(page.locator('.tab-row')).toHaveCount(1)
+    await expect(page.locator('.tab-expand')).toHaveCount(0)
+    await page.locator('.group-head').click({ button: 'right' })
+    await page.locator('.context-menu').getByText('Claude: новый разговор').click()
+    await expect.poll(async () => (await tabsOf(page)).tabs.length).toBe(2)
+
+    await page.locator('.tab-expand').click()
+    const first = page.locator('.history').first()
+    await expect(first.locator('.label')).toHaveText(titles)
+    await expect(first.locator('.history-mark')).toHaveText(['', '', ''])
+
+    // разговор открывается в новой Claude-вкладке через resume
+    await first.locator('.history-row', { hasText: titles[1] }).click()
+    await expect.poll(async () => (await tabsOf(page)).tabs.length).toBe(3)
+    const r = await tabsOf(page)
+    expect(r.tabs[2]).toMatchObject({ cwd: dirs.project, kind: 'claude' })
+    expect(r.view.activeTab).toBe(r.tabs[2].id)
+    expect(await sessions(page)).toEqual([null, null, 's1'])
+    await expect(first.locator('.history-mark')).toHaveText(['', '●', ''])
+
+    // у новой вкладки её собственного разговора в списке нет
+    await page.locator('.tab-expand').nth(1).click()
+    await expect(page.locator('.history').nth(1).locator('.label')).toHaveText([titles[0], titles[2]])
+
+    // повторный клик по открытому разговору — переход на его вкладку, дубля нет
+    await page.locator('.tab-row').nth(1).click()
+    await expect.poll(async () => (await tabsOf(page)).view.activeTab).toBe(r.tabs[1].id)
+    await first.locator('.history-row', { hasText: titles[1] }).click()
+    await expect.poll(async () => (await tabsOf(page)).view.activeTab).toBe(r.tabs[2].id)
+    expect((await tabsOf(page)).tabs).toHaveLength(3)
+
+    // стрелка сворачивает список
+    await page.locator('.tab-expand').first().click()
+    await expect(page.locator('.history')).toHaveCount(1)
   } finally {
     await app.close()
   }

@@ -11,6 +11,7 @@ Running several Claude Code sessions side by side in plain PowerShell windows ge
 - **Sidebar** with all tabs grouped by project. You can see which Claude is working, which is waiting for an answer or permission, and which has finished. Right-click a group to start a new Claude session or console in its folder.
 - **Notifications and sound** when Claude is waiting for you or has finished in a tab you aren't looking at. Clicking a notification opens the tab.
 - **Splits**: several sessions and a project console on one screen. A Claude tab comes on screen with its project's console below it; ``Ctrl+` `` hides the console.
+- **Past conversations** right in the sidebar: the ▸ arrow next to a Claude tab lists the project's earlier conversations, and a click brings one back. See [Past conversations](#past-conversations).
 - **Palette** (`Ctrl+Shift+P`): tabs, projects, past Claude conversations and commands.
 - **Restore**: after a restart you get the same tabs and splits, and Claude continues the same conversations via `claude --resume`.
 - Your PowerShell profile with your keys is loaded in every tab. Terminal3000 never reads it.
@@ -60,6 +61,17 @@ Claude statuses come from [Claude Code hooks](https://docs.claude.com/claude-cod
 - To remove the hooks: palette (`Ctrl+Shift+P`) → «Удалить хуки Claude Code» (Remove Claude Code hooks). Only entries containing `t3000-hook` are removed.
 
 Claude sessions started before the hooks were installed begin sending statuses after a restart.
+
+## Past conversations
+
+![A Claude tab expanded in the sidebar: the project's past conversations with their age, one of them already open in another tab](docs/history.png)
+
+Click ▸ next to a Claude tab to see the project's past conversations, newest first: the same ones `claude --resume` offers in that folder. It's handy when you need to recall something from an old conversation or pick up a specific one.
+
+- A click opens the conversation in a new Claude tab via `--resume`, started with your [`claudeCommand`](#your-own-claude-command). The current tab keeps working.
+- ● marks a conversation that's already open in another tab. A click switches to that tab instead of starting a second copy.
+- The tab's own conversation isn't listed. The sidebar shows the 10 most recent; «Все разговоры (N)…» (All conversations) opens the full list in the palette, with search.
+- The list is re-read every time you expand it, so new conversations show up without a restart.
 
 ## Keys
 
