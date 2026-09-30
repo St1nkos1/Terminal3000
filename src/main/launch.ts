@@ -34,11 +34,31 @@ export function claudeScript(claudeCommand: string, start: ClaudeStart, sessionI
   )
 }
 
+// Переменные терминала, из которого запустили приложение: во вкладках Terminal3000 они врут
+const PARENT_TERMINAL = /^(WT_SESSION|WT_PROFILE_ID|TERM_PROGRAM_VERSION|VSCODE_.*)$/i
+// Записи, которые npm ставит в начало PATH скрипта (npm start)
+const NPM_PATH_ENTRY = /[\\/](node_modules[\\/]\.bin|@npmcli[\\/]run-script[\\/]lib[\\/]node-gyp-bin)[\\/]?$/i
+
+function stripNpmPath(path: string): string {
+  const parts = path.split(';')
+  let i = 0
+  while (i < parts.length && NPM_PATH_ENTRY.test(parts[i])) i++
+  return parts.slice(i).join(';')
+}
+
 export function buildEnv(tab: TabRecord, ctx: LaunchContext): Record<string, string> {
+  const base = Object.entries(ctx.baseEnv).filter((e): e is [string, string] => e[1] !== undefined)
+  const upper = base.map(([k]) => k.toUpperCase())
+  // приложение запущено npm-скриптом: его окружение (npm_*, INIT_CWD, NODE, .bin в PATH) вкладкам не нужно
+  const fromNpm = upper.some((k) => k.startsWith('NPM_LIFECYCLE_') || k === 'NPM_NODE_EXECPATH')
+  const vscodeAskpass = upper.some((k) => k.startsWith('VSCODE_GIT_ASKPASS'))
   const env: Record<string, string> = {}
-  for (const [k, v] of Object.entries(ctx.baseEnv)) {
-    if (v === undefined || k.toUpperCase().startsWith('ELECTRON_')) continue
-    env[k] = v
+  for (const [k, v] of base) {
+    const u = k.toUpperCase()
+    if (u.startsWith('ELECTRON_') || PARENT_TERMINAL.test(k)) continue
+    if (fromNpm && (u.startsWith('NPM_') || u === 'INIT_CWD' || u === 'NODE')) continue
+    if (vscodeAskpass && u === 'GIT_ASKPASS') continue
+    env[k] = fromNpm && u === 'PATH' ? stripNpmPath(v) : v
   }
   env.T3000_TAB_ID = tab.id
   env.T3000_PORT = String(ctx.port)

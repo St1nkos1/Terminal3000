@@ -122,6 +122,67 @@ describe('buildEnv', () => {
     })
   })
 
+  it('запуск через npm start: окружение npm-скрипта во вкладки не попадает', () => {
+    const env = buildEnv(tab(), {
+      ...ctx,
+      baseEnv: {
+        Path: [
+          'C:\\src\\Terminal3000\\node_modules\\.bin',
+          'C:\\src\\node_modules\\.bin',
+          'C:\\node_modules\\.bin',
+          'C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\node-gyp-bin',
+          'C:\\Windows\\System32',
+          'C:\\Users\\u\\tools\\node_modules\\.bin'
+        ].join(';'),
+        npm_lifecycle_event: 'start',
+        npm_config_prefix: 'C:\\Users\\u\\AppData\\Roaming\\npm',
+        npm_config_local_prefix: 'C:\\src\\Terminal3000',
+        npm_package_name: 'terminal3000',
+        npm_node_execpath: 'C:\\Program Files\\nodejs\\node.exe',
+        INIT_CWD: 'C:\\src\\Terminal3000',
+        NODE: 'C:\\Program Files\\nodejs\\node.exe',
+        USERPROFILE: 'C:\\Users\\u'
+      }
+    })
+    // записи, которые npm добавил в начало, убраны; свои записи пользователя остались
+    expect(env.Path).toBe('C:\\Windows\\System32;C:\\Users\\u\\tools\\node_modules\\.bin')
+    expect(Object.keys(env).filter((k) => /^(npm_|INIT_CWD$|NODE$)/i.test(k))).toEqual([])
+    expect(env.USERPROFILE).toBe('C:\\Users\\u')
+  })
+
+  it('без npm PATH и NODE не трогаются', () => {
+    const baseEnv = { PATH: 'C:\\tools\\node_modules\\.bin;C:\\Windows', NODE: 'x' }
+    expect(buildEnv(tab(), { ...ctx, baseEnv })).toMatchObject(baseEnv)
+  })
+
+  it('переменные терминала, из которого запустили приложение, не наследуются', () => {
+    const env = buildEnv(tab(), {
+      ...ctx,
+      baseEnv: {
+        WT_SESSION: 'guid',
+        WT_PROFILE_ID: '{guid}',
+        TERM_PROGRAM: 'vscode',
+        TERM_PROGRAM_VERSION: '1.105.0',
+        VSCODE_GIT_IPC_HANDLE: '\\\\.\\pipe\\vscode-git',
+        VSCODE_GIT_ASKPASS_MAIN: 'C:\\VSCode\\askpass-main.js',
+        GIT_ASKPASS: 'C:\\VSCode\\askpass.sh',
+        HOME: 'C:\\Users\\u'
+      }
+    })
+    expect(env).toEqual({
+      HOME: 'C:\\Users\\u',
+      T3000_TAB_ID: 't_1',
+      T3000_PORT: '4567',
+      T3000_TOKEN: 'tok',
+      TERM_PROGRAM: 'Terminal3000',
+      COLORTERM: 'truecolor'
+    })
+    // свой GIT_ASKPASS пользователя, не от VS Code, остаётся
+    expect(buildEnv(tab(), { ...ctx, baseEnv: { GIT_ASKPASS: 'C:\\my\\askpass.exe' } }).GIT_ASKPASS).toBe(
+      'C:\\my\\askpass.exe'
+    )
+  })
+
   it('buildLaunch кладёт окружение в спецификацию', () => {
     expect(buildLaunch(tab(), config, ctx, 'new').env.T3000_TAB_ID).toBe('t_1')
   })
