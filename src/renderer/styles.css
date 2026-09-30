@@ -475,3 +475,42 @@ button {
 .search-bar input.miss {
   border-color: var(--st-red);
 }
+
+/* Приветствие первого запуска */
+.welcome {
+  width: min(600px, 92vw);
+  line-height: 1.45;
+}
+
+.welcome p {
+  color: var(--text);
+}
+
+.welcome code,
+.welcome kbd {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.welcome-keys {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+}
+
+.welcome-error {
+  color: var(--st-red);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

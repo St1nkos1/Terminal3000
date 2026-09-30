@@ -29,6 +29,8 @@ export type PaletteCommand =
   | { type: 'action'; id: ActionId }
   | { type: 'open-config' }
   | { type: 'toggle-sidebar' }
+  | { type: 'install-hooks' }
+  | { type: 'uninstall-hooks' }
 
 export interface PaletteItem {
   key: string
@@ -148,12 +150,22 @@ function commandItems(d: PaletteData): PaletteItem[] {
         action('closeTab', 'Закрыть вкладку')
       ]
     : []
+  // в повреждённый settings.json установщик всё равно не пишет, команда не нужна
+  const hooks: PaletteItem[] = []
+  if (d.hooks.state === 'missing' || d.hooks.state === 'outdated') {
+    const label = d.hooks.state === 'outdated' ? 'Обновить хуки Claude Code' : 'Установить хуки Claude Code'
+    hooks.push(item('install-hooks', label, '', { type: 'install-hooks' }))
+  }
+  if (d.hooks.state === 'installed' || d.hooks.state === 'outdated') {
+    hooks.push(item('uninstall-hooks', 'Удалить хуки Claude Code', '', { type: 'uninstall-hooks' }))
+  }
   return [
     item('newTab', 'Новая вкладка…', kb.newTab, { type: 'page', mode: { page: 'new-tab' } }),
     ...forTab,
     action('nextAttention', 'Следующая вкладка, которая ждёт или готова'),
     action('doNotDisturb', d.doNotDisturb ? 'Не беспокоить: выключить' : 'Не беспокоить: включить'),
     item('toggle-sidebar', d.sidebarCollapsed ? 'Развернуть панель' : 'Свернуть панель', '', { type: 'toggle-sidebar' }),
+    ...hooks,
     item('open-config', 'Открыть настройки (config.json)', '', { type: 'open-config' })
   ]
 }

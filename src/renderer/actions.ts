@@ -1,6 +1,6 @@
 import type { T3000Api } from '../shared/ipc'
 import { layoutTabs, removeTab, setSizes } from '../shared/layout'
-import type { ActionId, AppConfig, AppState, NewTabRequest, SplitDir, ViewState } from '../shared/types'
+import type { ActionId, AppConfig, AppState, BannerCommand, NewTabRequest, SplitDir, ViewState } from '../shared/types'
 import { fixView, placeTab, showTab } from '../shared/view'
 import { buildKeymap } from './keybindings'
 import type { PaletteCommand, PaletteMode } from './palette-pages'
@@ -175,6 +175,14 @@ export function createActions(d: ActionDeps) {
         closeOverlay()
         toggleSidebar()
         return
+      case 'install-hooks':
+        closeOverlay()
+        await installHooks()
+        return
+      case 'uninstall-hooks':
+        closeOverlay()
+        await uninstallHooks()
+        return
     }
   }
 
@@ -233,6 +241,29 @@ export function createActions(d: ActionDeps) {
     } else {
       await openTab({ cwd: step.cwd, kind: 'shell' }, 'column')
     }
+  }
+
+  // Новое состояние хуков придёт из main вместе с AppState
+  async function installHooks(): Promise<void> {
+    await api.installHooks()
+  }
+
+  async function uninstallHooks(): Promise<void> {
+    await api.uninstallHooks()
+  }
+
+  function dismissWelcome(): void {
+    api.dismissWelcome()
+  }
+
+  async function welcomeInstall(): Promise<void> {
+    await installHooks()
+    dismissWelcome()
+  }
+
+  async function bannerCommand(c: BannerCommand): Promise<void> {
+    if (c === 'install-hooks') await installHooks()
+    else api.openConfig()
   }
 
   function run(id: ActionId): void {
@@ -310,7 +341,12 @@ export function createActions(d: ActionDeps) {
     confirmClose,
     closeSearch,
     endCycle,
-    toggleConsole
+    toggleConsole,
+    installHooks,
+    uninstallHooks,
+    dismissWelcome,
+    welcomeInstall,
+    bannerCommand
   }
 }
 

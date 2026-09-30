@@ -2,10 +2,12 @@ import { useEffect } from 'react'
 import { useApp } from '../context'
 import { matchAction } from '../keybindings'
 import { useStore } from '../store'
+import { Banners } from './Banner'
 import { ConfirmClose, RenameDialog } from './Dialog'
 import { Palette } from './Palette'
 import { PaneTree } from './PaneTree'
 import { Sidebar } from './Sidebar'
+import { Welcome } from './Welcome'
 
 const ROOT_PATH: number[] = []
 
@@ -13,8 +15,8 @@ export function App() {
   const { store, actions } = useApp()
   const layout = useStore(store, (s) => s.view.layout)
   const overlay = useStore(store, (s) => s.overlay)
-  const keymapErrors = useStore(store, (s) => s.keymapErrors)
   const newTabKey = useStore(store, (s) => s.config.keybindings.newTab)
+  const firstRun = useStore(store, (s) => s.app.firstRun)
 
   // Сочетания приложения перехватываются в capture на window: раньше xterm и полей ввода
   useEffect(() => {
@@ -45,16 +47,7 @@ export function App() {
     <div className="app">
       <Sidebar />
       <div className="content">
-        <div className="banners">
-          {keymapErrors.length > 0 && (
-            <div className="banner banner-warn">
-              <span className="banner-text">
-                Ошибки в клавишах: {keymapErrors[0]}
-                {keymapErrors.length > 1 ? ` (и ещё ${keymapErrors.length - 1})` : ''}
-              </span>
-            </div>
-          )}
-        </div>
+        <Banners />
         <main className="main">
           {layout ? (
             <PaneTree node={layout} path={ROOT_PATH} />
@@ -66,6 +59,7 @@ export function App() {
       {overlay?.type === 'palette' && <Palette overlay={overlay} />}
       {overlay?.type === 'rename' && <RenameDialog tab={overlay.tab} />}
       {overlay?.type === 'confirm-close' && <ConfirmClose tab={overlay.tab} />}
+      {firstRun && <Welcome />}
     </div>
   )
 }

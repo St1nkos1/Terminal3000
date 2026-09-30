@@ -93,7 +93,7 @@ async function start(): Promise<void> {
   let configErrors = loaded.broken ? [] : loaded.errors
   if (loaded.broken) log.warn(`config.json повреждён, сохранён как ${loaded.broken}`)
   let doNotDisturb = config.notifications.doNotDisturb
-  const welcome = welcomeNeeded
+  let welcome = welcomeNeeded
 
   const ws = loadWorkspace(paths.workspaceFile)
   if (ws.broken) log.warn(`workspace.json повреждён, сохранён как ${ws.broken}`)
@@ -118,7 +118,9 @@ async function start(): Promise<void> {
     paths.claudeSettings,
     resolveHookCommand({ nodeAvailable: isNodeOnPath(), scriptPath: paths.hookScript, exePath: process.execPath })
   )
-  const hooks: HooksState = installer.status()
+  let hooks: HooksState = installer.status()
+  // для баннера «Хуки установлены…»: уже открытые сессии Claude их не видят
+  let hooksJustInstalled = false
   const projects = new ProjectIndex(paths.claudeDir)
   const osBuild = Number(release().split('.')[2]) || 0
 
@@ -193,7 +195,7 @@ async function start(): Promise<void> {
     banners: buildBanners({
       hooks,
       firstRun: welcome,
-      hooksJustInstalled: false,
+      hooksJustInstalled,
       hookServerFailed,
       configErrors,
       brokenConfig: loaded.broken,
@@ -327,6 +329,33 @@ async function start(): Promise<void> {
     win.setOverlayIcon(nativeImage.createFromDataURL(dataUrl), `Ждут внимания: ${count}`)
   })
 
+  const setHooks = (next: HooksState, what: string): HooksState => {
+    hooks = next
+    log.info(`хуки: ${what}, состояние ${next.state}`)
+    sendState()
+    return next
+  }
+  handle(IPC.installHooks, () => {
+    const next = installer.install()
+    hooksJustInstalled = next.state === 'installed'
+    return setHooks(next, 'установка')
+  })
+  handle(IPC.uninstallHooks, () => {
+    hooksJustInstalled = false
+    return setHooks(installer.uninstall(), 'удаление')
+  })
+  on(IPC.dismissWelcome, () => {
+    welcome = false
+    sendState()
+  })
+  // settings.json могли поправить руками или другой копией приложения
+  const refreshHooks = (): void => {
+    const next = installer.status()
+    if (JSON.stringify(next) === JSON.stringify(hooks)) return
+    hooks = next
+    if (next.state !== 'installed') hooksJustInstalled = false
+    sendState()
+  }
   app.on('second-instance', (_e, argv, cwd) => {
     focusWindow()
     const f = parseFolderArg(argv, process.defaultApp === true, cwd)
@@ -367,6 +396,7 @@ async function start(): Promise<void> {
     w.on('focus', () => {
       w.flashFrame(false)
       controller.setWindowFocused(true)
+      refreshHooks()
     })
     w.on('blur', () => controller.setWindowFocused(false))
     w.on('closed', () => {
