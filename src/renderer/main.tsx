@@ -3,6 +3,8 @@ import './styles.css'
 import { createRoot } from 'react-dom/client'
 import { createActions } from './actions'
 import { App } from './components/App'
+import { attentionCount, drawBadge } from './badge'
+import { SoundPlayer, WebAudioBackend } from './sounds'
 import { AppCtx } from './context'
 import { createStore, initialUiState, type UiState } from './store'
 import { TerminalViews } from './terminal-view'
@@ -15,7 +17,12 @@ async function boot(): Promise<void> {
   const actions = createActions({ store, api, views, pageVisible: () => document.visibilityState === 'visible' })
 
   api.onState((s) => actions.onState(s))
-  api.onConfig((c) => actions.onConfig(c))
+  const player = new SoundPlayer(new WebAudioBackend(), (kind) => api.loadSound(kind))
+  api.onConfig((c) => {
+    actions.onConfig(c)
+    player.clearCache()
+  })
+  api.onPlaySound((req) => void player.play(req))
   api.onPtyData((tab, seq, data) => views.onData(tab, seq, data))
   api.onFocusTab((tab) => actions.activate(tab))
 
@@ -25,6 +32,19 @@ async function boot(): Promise<void> {
   // окно свернули или развернули — меняются видимые вкладки
   document.addEventListener('visibilitychange', () => actions.refreshView())
   setInterval(() => store.set({ now: Date.now() }), 1000)
+  // звук обрывается, когда его вкладку открыли; бейдж — число вкладок, которые ждут внимания
+  let badge = -1
+  const sync = () => {
+    const s = store.get()
+    player.stopFor(s.view.visibleTabs, document.hasFocus())
+    const count = s.config.notifications.badge ? attentionCount(s.app.tabs) : 0
+    if (count === badge) return
+    badge = count
+    api.setBadge(drawBadge(count), count)
+  }
+  store.subscribe(sync)
+  window.addEventListener('focus', sync)
+  sync()
   // сообщить main, какие вкладки видны: спящие видимые вкладки стартуют
   actions.refreshView()
 

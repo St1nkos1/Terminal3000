@@ -5,6 +5,8 @@ import {
   dialog,
   ipcMain,
   Menu,
+  nativeImage,
+  Notification,
   session,
   shell,
   type IpcMainEvent,
@@ -18,6 +20,7 @@ import { join } from 'node:path'
 import { IPC } from '../shared/ipc'
 import type { AppConfig, AppState, HookEvent, HooksState, InitData } from '../shared/types'
 import { showTab } from '../shared/view'
+import { parseSoundSpec } from '../shared/sounds'
 import { buildBanners } from './banners'
 import { hasHookFlag, parseFolderArg } from './cli'
 import { loadConfig, watchConfig } from './config'
@@ -28,10 +31,12 @@ import { isTabId, parseNewTabRequest, parseViewState } from './ipc-guards'
 import { createLogger } from './log'
 import { resolvePaths } from './paths'
 import { loadWorkspace, WorkspaceSaver } from './persistence'
+import { Notifier } from './notifier'
 import { ProjectIndex } from './project-index'
 import { PtyManager } from './pty-manager'
 import { isSafeExternalUrl } from './security'
 import type { Alert } from './session-store'
+import { readSoundFile, soundFilePath } from './sound-file'
 
 const paths = resolvePaths({
   isPackaged: app.isPackaged,
@@ -124,9 +129,35 @@ async function start(): Promise<void> {
     if (win && !win.isDestroyed()) win.webContents.send(channel, ...args)
   }
 
-  // Уведомления подключает Task 16
+  // ссылки держим, иначе сборщик мусора уберёт уведомление вместе с обработчиком клика
+  const toasts = new Set<Notification>()
+  const notifier = new Notifier({
+    getConfig: () => config,
+    doNotDisturb: () => doNotDisturb,
+    windowFocused: () => !!win && win.isFocused(),
+    showToast: ({ title, body, onClick }) => {
+      if (!Notification.isSupported()) return
+      // silent: звук играет сам Terminal3000
+      const n = new Notification({ title, body, silent: true })
+      toasts.add(n)
+      n.on('click', () => {
+        toasts.delete(n)
+        onClick()
+      })
+      n.on('close', () => toasts.delete(n))
+      n.show()
+    },
+    flashFrame: () => win?.flashFrame(true),
+    playSound: (req) => send(IPC.playSound, req),
+    focusTab: (tab) => {
+      focusWindow()
+      send(IPC.focusTab, tab)
+    }
+  })
   const onAlert = (alert: Alert): void => {
+    // текст Claude в лог не пишем, только вид события
     log.info(`вкладка ${alert.tab}: уведомление ${alert.kind}`)
+    notifier.alert(alert)
   }
 
   const controller: Controller = new Controller({
@@ -277,6 +308,24 @@ async function start(): Promise<void> {
   on(IPC.openExternal, (url) => {
     if (typeof url === 'string' && isSafeExternalUrl(url)) void shell.openExternal(url)
   })
+  // Путь к звуку берётся из текущего конфига: renderer не может попросить произвольный файл
+  handle(IPC.loadSound, (kind) => {
+    if (kind !== 'waiting' && kind !== 'done' && kind !== 'crashed') return null
+    const file = soundFilePath(parseSoundSpec(config.sounds[kind]), paths.soundsDir, paths.userData)
+    if (!file) return null
+    const data = readSoundFile(file)
+    if (!data) log.warn(`звук «${kind}»: файл не найден или больше 20 МБ, играет встроенный сигнал`)
+    return data
+  })
+  on(IPC.setBadge, (dataUrl, count) => {
+    if (!win || typeof count !== 'number') return
+    if (dataUrl === null || count <= 0) {
+      win.setOverlayIcon(null, '')
+      return
+    }
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image/png;base64,') || dataUrl.length > 100_000) return
+    win.setOverlayIcon(nativeImage.createFromDataURL(dataUrl), `Ждут внимания: ${count}`)
+  })
 
   app.on('second-instance', (_e, argv, cwd) => {
     focusWindow()
@@ -315,7 +364,10 @@ async function start(): Promise<void> {
     })
     win = w
     w.once('ready-to-show', () => w.show())
-    w.on('focus', () => controller.setWindowFocused(true))
+    w.on('focus', () => {
+      w.flashFrame(false)
+      controller.setWindowFocused(true)
+    })
     w.on('blur', () => controller.setWindowFocused(false))
     w.on('closed', () => {
       win = null
