@@ -75,7 +75,7 @@ export function createActions(d: ActionDeps) {
     const known = new Set(app.tabs.map((t) => t.id))
     const s = store.get()
     // диалог и строка поиска закрытой вкладки больше не нужны
-    const overlay = s.overlay && s.overlay.type !== 'palette' && !known.has(s.overlay.tab) ? null : s.overlay
+    const overlay = s.overlay && 'tab' in s.overlay && !known.has(s.overlay.tab) ? null : s.overlay
     const search = s.search && known.has(s.search) ? s.search : null
     store.set({ app, mru: s.mru.filter((t) => known.has(t)), overlay, search })
     views.prune(known)
@@ -132,6 +132,10 @@ export function createActions(d: ActionDeps) {
       return
     }
     store.set({ overlay: { type: 'palette', mode, back: [] } })
+  }
+
+  function openGroupMenu(cwd: string, x: number, y: number): void {
+    store.set({ overlay: { type: 'group-menu', cwd, x, y } })
   }
 
   function palettePage(mode: PaletteMode): void {
@@ -349,6 +353,7 @@ export function createActions(d: ActionDeps) {
     run,
     runCommand,
     openPalette,
+    openGroupMenu,
     paletteBack,
     closeOverlay,
     startRename,

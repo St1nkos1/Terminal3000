@@ -424,6 +424,45 @@ button {
   color: var(--muted);
 }
 
+/* Меню группы у курсора: подложка без затемнения ловит клик мимо */
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+}
+
+.context-menu {
+  position: fixed;
+  min-width: 220px;
+  padding: 4px 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  outline: none;
+}
+
+.menu-item {
+  padding: 5px 14px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.menu-item.current {
+  background: #04395e;
+}
+
+.menu-item.disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.menu-separator {
+  height: 1px;
+  margin: 4px 0;
+  background: var(--border);
+}
+
 .dialog {
   width: min(460px, 90vw);
   display: flex;

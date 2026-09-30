@@ -40,6 +40,16 @@ export interface PaletteItem {
   command: PaletteCommand
 }
 
+// Пункт меню группы; command: null — пункт виден, но недоступен
+export interface MenuItem {
+  key: string
+  label: string
+  detail: string
+  command: PaletteCommand | null
+  // линия перед пунктом
+  separator?: true
+}
+
 export interface PaletteData {
   tabs: TabInfo[]
   // null — список ещё загружается
@@ -56,6 +66,9 @@ export interface PaletteData {
 
 // Сколько прошлых разговоров показывать на главной странице
 const ROOT_CONVERSATIONS = 300
+
+const CLAUDE_CONTINUE = 'Claude: продолжить последний'
+const CLAUDE_PICK = 'Claude: выбрать разговор…'
 
 const withSplit = (split?: SplitDir) => (split ? { split } : {})
 
@@ -236,10 +249,10 @@ function projectItems(d: PaletteData, cwd: string, split?: SplitDir): PaletteIte
   })
   const out = [open('claude-new', 'Claude: новый разговор', p?.name ?? folderName(cwd), { cwd: target, kind: 'claude', claude: 'new' })]
   if (convs.length > 0) {
-    out.push(open('claude-continue', 'Claude: продолжить последний', convs[0].title, { cwd: target, kind: 'claude', claude: 'continue' }))
+    out.push(open('claude-continue', CLAUDE_CONTINUE, convs[0].title, { cwd: target, kind: 'claude', claude: 'continue' }))
     out.push({
       key: 'claude-pick',
-      label: 'Claude: выбрать разговор…',
+      label: CLAUDE_PICK,
       detail: `разговоров: ${convs.length}`,
       hint: '',
       command: { type: 'page', mode: { page: 'conversations', cwd: target, ...withSplit(split) } }
@@ -249,6 +262,24 @@ function projectItems(d: PaletteData, cwd: string, split?: SplitDir): PaletteIte
     out.push(open(`shell:${shell}`, `Консоль: ${shell}`, d.config.shells[shell].file, { cwd: target, kind: 'shell', shell }))
   }
   return out
+}
+
+// Правый клик по группе: то же, что страница проекта в палитре. Без разговоров
+// (или пока они читаются) пункты остаются серыми, чтобы меню не прыгало под курсором
+export function groupMenuItems(d: PaletteData, cwd: string): MenuItem[] {
+  const items = projectItems(d, cwd)
+  const toMenu = ({ key, label, detail, command }: PaletteItem): MenuItem => ({ key, label, detail, command })
+  const claude = items.filter((i) => !i.key.startsWith('shell:')).map(toMenu)
+  if (claude.length === 1) {
+    claude.push(
+      { key: 'claude-continue', label: CLAUDE_CONTINUE, detail: '', command: null },
+      { key: 'claude-pick', label: CLAUDE_PICK, detail: '', command: null }
+    )
+  }
+  const shells = items
+    .filter((i) => i.key.startsWith('shell:'))
+    .map((i, n): MenuItem => (n === 0 ? { ...toMenu(i), separator: true } : toMenu(i)))
+  return [...claude, ...shells]
 }
 
 function conversationItems(d: PaletteData, cwd: string, split?: SplitDir): PaletteItem[] {

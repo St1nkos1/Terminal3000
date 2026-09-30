@@ -4,6 +4,7 @@ import { matchAction } from '../keybindings'
 import { useStore } from '../store'
 import { Banners } from './Banner'
 import { ConfirmClose, RenameDialog } from './Dialog'
+import { GroupMenu } from './GroupMenu'
 import { Palette } from './Palette'
 import { PaneTree } from './PaneTree'
 import { Sidebar } from './Sidebar'
@@ -57,6 +58,7 @@ export function App() {
         </main>
       </div>
       {overlay?.type === 'palette' && <Palette overlay={overlay} />}
+      {overlay?.type === 'group-menu' && <GroupMenu overlay={overlay} />}
       {overlay?.type === 'rename' && <RenameDialog tab={overlay.tab} />}
       {overlay?.type === 'confirm-close' && <ConfirmClose tab={overlay.tab} />}
       {firstRun && <Welcome />}

@@ -136,6 +136,57 @@ test('папка из командной строки открывает в не
   }
 })
 
+test('правый клик по группе: меню у курсора, новый сеанс в той же папке', async () => {
+  const dirs = makeDirs()
+  writeTestConfig(dirs.data)
+  const app = await launchApp(dirs, [dirs.project])
+  try {
+    const page = await app.firstWindow()
+    const head = page.locator('.group-head')
+    const menu = page.locator('.context-menu')
+    await head.click({ button: 'right' })
+    await expect(menu).toBeVisible()
+    // разговоров в папке нет: продолжение и выбор видны, но недоступны; свои оболочки дополняют стандартные
+    await expect(menu.locator('.menu-item')).toHaveText([
+      'Claude: новый разговор',
+      'Claude: продолжить последний',
+      'Claude: выбрать разговор…',
+      'Консоль: powershell',
+      'Консоль: cmd',
+      'Консоль: gitbash'
+    ])
+    await expect(menu.locator('.menu-item.disabled')).toHaveCount(2)
+    await page.keyboard.press('Escape')
+    await expect(menu).toHaveCount(0)
+
+    await head.click({ button: 'right' })
+    await menu.getByText('Консоль: powershell').click()
+    await expect(menu).toHaveCount(0)
+    await expect.poll(async () => (await tabsOf(page)).tabs.length).toBe(2)
+    const r = await tabsOf(page)
+    expect(r.tabs.map((t) => [t.cwd, t.kind])).toEqual([
+      [dirs.project, 'shell'],
+      [dirs.project, 'shell']
+    ])
+    expect(r.view.activeTab).toBe(r.tabs[1].id)
+    await expect(page.locator('.group')).toHaveCount(1)
+    await expect(page.locator('.group .tab-row')).toHaveCount(2)
+
+    // с клавиатуры: стрелка вниз перескакивает недоступные пункты
+    await head.click({ button: 'right' })
+    await page.keyboard.press('ArrowDown')
+    await expect(menu.locator('.menu-item.current')).toHaveText('Claude: новый разговор')
+    await page.keyboard.press('ArrowDown')
+    await expect(menu.locator('.menu-item.current')).toHaveText('Консоль: powershell')
+    await page.keyboard.press('Enter')
+    await expect(menu).toHaveCount(0)
+    await expect.poll(async () => (await tabsOf(page)).tabs.length).toBe(3)
+    expect((await tabsOf(page)).tabs[2]).toMatchObject({ cwd: dirs.project, kind: 'shell' })
+  } finally {
+    await app.close()
+  }
+})
+
 test('режим --t3000-hook отправляет событие и выходит с кодом 0', async () => {
   const dirs = makeDirs()
   const events: HookEvent[] = []

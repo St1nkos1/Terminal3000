@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_CONFIG } from '../../src/main/config'
 import {
   formatAgo,
+  groupMenuItems,
   mergeProjects,
   pageItems,
   pagePlaceholder,
@@ -155,5 +156,48 @@ describe('palette-pages', () => {
     expect(formatAgo(2 * 1440 * MIN)).toBe('2 дн назад')
     expect(formatAgo(65 * 1440 * MIN)).toBe('2 мес назад')
     expect(pagePlaceholder({ page: 'project', cwd: 'C:\\Work\\Data' })).toBe('Что запустить в Data')
+  })
+})
+
+describe('меню группы', () => {
+  const brief = (d: PaletteData, cwd: string) =>
+    groupMenuItems(d, cwd).map((i) => [i.key, i.command !== null, i.separator ?? false])
+
+  it('Claude и консоли в папке группы, оболочка по умолчанию первой, линия перед консолями', () => {
+    const d = data({ config: { ...structuredClone(DEFAULT_CONFIG), defaultShell: 'cmd' } })
+    expect(brief(d, 'c:/work/mywebshop')).toEqual([
+      ['claude-new', true, false],
+      ['claude-continue', true, false],
+      ['claude-pick', true, false],
+      ['shell:cmd', true, true],
+      ['shell:powershell', true, false],
+      ['shell:gitbash', true, false]
+    ])
+    const items = groupMenuItems(d, 'c:/work/mywebshop')
+    expect(items.map((i) => i.label)).toEqual([
+      'Claude: новый разговор',
+      'Claude: продолжить последний',
+      'Claude: выбрать разговор…',
+      'Консоль: cmd',
+      'Консоль: powershell',
+      'Консоль: gitbash'
+    ])
+    expect(items[0].command).toEqual({ type: 'open', req: { cwd: 'C:\\Work\\MyWebShop', kind: 'claude', claude: 'new' } })
+    expect(items[1].detail).toBe('почини тесты')
+    expect(items[2].command).toEqual({ type: 'page', mode: { page: 'conversations', cwd: 'C:\\Work\\MyWebShop' } })
+    expect(items[3].command).toEqual({ type: 'open', req: { cwd: 'C:\\Work\\MyWebShop', kind: 'shell', shell: 'cmd' } })
+  })
+
+  it('пока разговоры читаются и когда их нет, пункты на месте, но недоступны', () => {
+    const disabled = [
+      ['claude-new', true, false],
+      ['claude-continue', false, false],
+      ['claude-pick', false, false],
+      ['shell:powershell', true, true],
+      ['shell:cmd', true, false],
+      ['shell:gitbash', true, false]
+    ]
+    expect(brief(data({ projects: null }), 'C:\\Work\\MyWebShop')).toEqual(disabled)
+    expect(brief(data(), 'E:\\Новая')).toEqual(disabled)
   })
 })

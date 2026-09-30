@@ -124,7 +124,16 @@ export function Sidebar() {
           const collapsed = sidebar.collapsedGroups.includes(g.key)
           return (
             <section key={g.key} className="group">
-              <button className="group-head" title={g.cwd} onClick={() => actions.toggleGroup(g.key)}>
+              <button
+                className="group-head"
+                title={g.cwd}
+                onClick={() => actions.toggleGroup(g.key)}
+                // правый клик — меню нового сеанса в папке группы
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  actions.openGroupMenu(g.cwd, e.clientX, e.clientY)
+                }}
+              >
                 {collapsed ? '▸' : '▾'} {g.name}
               </button>
               {!collapsed &&

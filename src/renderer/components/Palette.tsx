@@ -8,8 +8,29 @@ import { useStore, type Overlay } from '../store'
 
 const MAX_ITEMS = 100
 
-function PalettePage({ mode, projects }: { mode: PaletteMode; projects: Project[] | null }) {
-  const { store, actions } = useApp()
+// Проекты и разговоры читаются один раз на открытие; null — ещё читаются
+export function useProjects(): Project[] | null {
+  const { api } = useApp()
+  const [projects, setProjects] = useState<Project[] | null>(null)
+  useEffect(() => {
+    let alive = true
+    api.listProjects().then(
+      (p) => {
+        if (alive) setProjects(p)
+      },
+      () => {
+        if (alive) setProjects([])
+      }
+    )
+    return () => {
+      alive = false
+    }
+  }, [api])
+  return projects
+}
+
+export function usePaletteData(projects: Project[] | null): PaletteData {
+  const { store } = useApp()
   const tabs = useStore(store, (s) => s.app.tabs)
   const hooks = useStore(store, (s) => s.app.hooks)
   const doNotDisturb = useStore(store, (s) => s.app.doNotDisturb)
@@ -17,10 +38,7 @@ function PalettePage({ mode, projects }: { mode: PaletteMode; projects: Project[
   const view = useStore(store, (s) => s.view)
   const now = useStore(store, (s) => s.now)
   const homeDir = useStore(store, (s) => s.homeDir)
-  const [query, setQuery] = useState('')
-  const [index, setIndex] = useState(0)
-
-  const data: PaletteData = {
+  return {
     tabs,
     projects,
     config,
@@ -32,6 +50,14 @@ function PalettePage({ mode, projects }: { mode: PaletteMode; projects: Project[
     now,
     homeDir
   }
+}
+
+function PalettePage({ mode, projects }: { mode: PaletteMode; projects: Project[] | null }) {
+  const { actions } = useApp()
+  const [query, setQuery] = useState('')
+  const [index, setIndex] = useState(0)
+
+  const data = usePaletteData(projects)
   const items = fuzzyFilter(pageItems(mode, data), query, (i) => `${i.label} ${i.detail}`).slice(0, MAX_ITEMS)
   const current = Math.min(index, Math.max(0, items.length - 1))
   const count = Math.max(1, items.length)
@@ -94,24 +120,8 @@ function PalettePage({ mode, projects }: { mode: PaletteMode; projects: Project[
 }
 
 export function Palette({ overlay }: { overlay: Extract<Overlay, { type: 'palette' }> }) {
-  const { api, actions } = useApp()
-  const [projects, setProjects] = useState<Project[] | null>(null)
-
-  // проекты и разговоры читаются один раз на открытие палитры
-  useEffect(() => {
-    let alive = true
-    api.listProjects().then(
-      (p) => {
-        if (alive) setProjects(p)
-      },
-      () => {
-        if (alive) setProjects([])
-      }
-    )
-    return () => {
-      alive = false
-    }
-  }, [api])
+  const { actions } = useApp()
+  const projects = useProjects()
 
   return (
     <div className="overlay" onMouseDown={() => actions.closeOverlay()}>

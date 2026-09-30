@@ -8,7 +8,7 @@ Running several Claude Code sessions side by side in plain PowerShell windows ge
 
 ![Terminal3000: tabs from several projects with Claude statuses and a project console under a session](docs/screenshot.png)
 
-- **Sidebar** with all tabs grouped by project. You can see which Claude is working, which is waiting for an answer or permission, and which has finished.
+- **Sidebar** with all tabs grouped by project. You can see which Claude is working, which is waiting for an answer or permission, and which has finished. Right-click a group to start a new Claude session or console in its folder.
 - **Notifications and sound** when Claude is waiting for you or has finished in a tab you aren't looking at. Clicking a notification opens the tab.
 - **Splits**: several sessions and a project console on one screen.
 - **Palette** (`Ctrl+Shift+P`): tabs, projects, past Claude conversations and commands.

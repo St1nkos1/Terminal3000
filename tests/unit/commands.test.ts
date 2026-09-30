@@ -105,6 +105,18 @@ describe('команды', () => {
     expect(actions.paletteBack()).toBe(false)
   })
 
+  it('меню группы: открывается у курсора, переживает новое состояние, ведёт в палитру', async () => {
+    const tabs = [makeTab('a', 'C:\\p')]
+    const { store, actions } = setupActions(tabs, { layout: pane('a'), activeTab: 'a' })
+    actions.openGroupMenu('C:\\p', 40, 120)
+    expect(store.get().overlay).toEqual({ type: 'group-menu', cwd: 'C:\\p', x: 40, y: 120 })
+    actions.onState(appState([...tabs, makeTab('b', 'D:\\q')]))
+    expect(store.get().overlay).toEqual({ type: 'group-menu', cwd: 'C:\\p', x: 40, y: 120 })
+    // «Claude: выбрать разговор…» — палитра без «назад» в меню
+    await actions.runCommand({ type: 'page', mode: { page: 'conversations', cwd: 'C:\\p' } })
+    expect(store.get().overlay).toEqual({ type: 'palette', mode: { page: 'conversations', cwd: 'C:\\p' }, back: [] })
+  })
+
   it('команды палитры: папка, новая вкладка рядом, оболочка, сплит с открытой вкладкой', async () => {
     const tabs = [makeTab('a', 'C:\\p'), makeTab('b', 'C:\\p')]
     const { store, actions, calls, willCreate } = setupActions(tabs, { layout: pane('a'), activeTab: 'a' })

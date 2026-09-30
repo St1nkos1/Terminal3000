@@ -8,6 +8,8 @@ export type Overlay =
   | { type: 'palette'; mode: PaletteMode; back: PaletteMode[] }
   | { type: 'rename'; tab: string }
   | { type: 'confirm-close'; tab: string }
+  // меню группы вкладок у курсора: x, y — координаты окна
+  | { type: 'group-menu'; cwd: string; x: number; y: number }
 
 export interface UiState {
   app: AppState
