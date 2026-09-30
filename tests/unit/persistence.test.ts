@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Workspace } from '../../src/shared/types'
 import {
   loadWorkspace,
+  parseWorkspace,
   readJson,
   saveWorkspaceSync,
   stamp,
@@ -163,5 +164,15 @@ describe('loadWorkspace: сбои файловой системы', () => {
     mkdirSync(`${f}.broken-20260930-120000`)
     expect(loadWorkspace(f, now)).toEqual({ workspace: null, broken: null })
     expect(readFileSync(f, 'utf8')).toBe('{ oops')
+  })
+})
+
+describe('parseWorkspace: размер терминала', () => {
+  it('корректный размер сохраняется, мусор отбрасывается', () => {
+    const base = { version: 1, tabs: [], layout: null, activeTab: null, sidebar: {} }
+    expect(parseWorkspace({ ...base, termSize: { cols: 100, rows: 40 } })?.termSize).toEqual({ cols: 100, rows: 40 })
+    for (const termSize of [{ cols: 'x', rows: 40 }, { cols: 100, rows: -1 }, { cols: 5000, rows: 40 }, { cols: 1.5, rows: 40 }, 'big']) {
+      expect(parseWorkspace({ ...base, termSize })?.termSize, JSON.stringify(termSize)).toBeUndefined()
+    }
   })
 })

@@ -495,3 +495,58 @@ describe('Controller: вид и уведомления', () => {
     expect(alerts.map((a) => a.body)).toEqual(['Claude закончил работу'])
   })
 })
+
+describe('Controller: размер терминала', () => {
+  // сколько раз размер вкладки задан до её запуска
+  function watchSpawns(pty: FakePty) {
+    const sizesAtSpawn: [string, number][] = []
+    const spawn = pty.spawn.bind(pty)
+    pty.spawn = (tab, spec) => {
+      sizesAtSpawn.push([tab, pty.resizes.filter((r) => r[0] === tab).length])
+      spawn(tab, spec)
+    }
+    return sizesAtSpawn
+  }
+
+  it('новая вкладка стартует в размере последнего терминала, а не 120×30', () => {
+    const { ctl, pty } = setup()
+    const spawns = watchSpawns(pty)
+    ctl.createTab({ cwd: 'C:\\work\\A', kind: 'shell' })
+    ctl.resize('t1', 100, 40)
+    ctl.createTab({ cwd: 'C:\\work\\A', kind: 'shell' })
+    expect(spawns).toEqual([
+      ['t1', 0],
+      ['t2', 1]
+    ])
+    expect(pty.resizes).toContainEqual(['t2', 100, 40])
+  })
+
+  it('размер сохраняется в workspace.json и задаётся активной вкладке при восстановлении', () => {
+    const first = setup()
+    first.ctl.createTab({ cwd: 'C:\\work\\A', kind: 'shell' })
+    const persisted = first.counts.persist
+    first.ctl.resize('t1', 100, 40)
+    expect(first.ctl.workspace().termSize).toEqual({ cols: 100, rows: 40 })
+    expect(first.counts.persist).toBeGreaterThan(persisted)
+
+    const { ctl, pty } = setup()
+    const spawns = watchSpawns(pty)
+    ctl.restore({ ...ws([rec('a')], 'a'), termSize: { cols: 90, rows: 30 } })
+    expect(spawns).toEqual([['a', 1]])
+    expect(pty.resizes).toEqual([['a', 90, 30]])
+  })
+
+  it('неверный размер не запоминается; свой размер вкладки не перезаписывается', () => {
+    const { ctl, pty } = setup()
+    ctl.createTab({ cwd: 'C:\\work\\A', kind: 'shell' })
+    ctl.resize('t1', 0, 40)
+    expect(ctl.workspace().termSize).toBeUndefined()
+    ctl.resize('t1', 80, 20)
+    ctl.createTab({ cwd: 'C:\\work\\A', kind: 'shell' })
+    ctl.resize('t2', 100, 40)
+    const before = pty.resizes.length
+    // перезапуск вкладки, которой renderer уже сообщил размер: PtyManager помнит её собственный
+    ctl.startTab('t1')
+    expect(pty.resizes.length).toBe(before)
+  })
+})

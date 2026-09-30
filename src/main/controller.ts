@@ -11,6 +11,7 @@ import {
   type SidebarState,
   type TabInfo,
   type ViewState,
+  type TermSize,
   type Workspace
 } from '../shared/types'
 import { buildLaunch, resolveExecutable, type LaunchContext } from './launch'
@@ -53,6 +54,9 @@ export class Controller {
   private sidebar: SidebarState = EMPTY_SIDEBAR
   private visible = new Set<string>()
   private focused = false
+  // последний размер терминала от renderer и вкладки, которым он уже сообщил свой
+  private termSize: TermSize | null = null
+  private readonly sized = new Set<string>()
 
   constructor(private readonly deps: ControllerDeps) {
     this.store = new SessionStore({
@@ -80,6 +84,7 @@ export class Controller {
       this.layout = ws.layout
       this.activeTab = ws.activeTab
       this.sidebar = ws.sidebar
+      this.termSize = ws.termSize ?? null
     }
     const eager = this.deps.getConfig().restore === 'eager'
     for (const t of this.store.list()) {
@@ -116,6 +121,7 @@ export class Controller {
   closeTab(tab: string): void {
     if (!this.store.get(tab)) return
     this.pty.forget(tab)
+    this.sized.delete(tab)
     this.store.remove(tab)
     this.layout = removeTab(this.layout, tab)
     this.fixView()
@@ -151,6 +157,11 @@ export class Controller {
 
   resize(tab: string, cols: number, rows: number): void {
     this.pty.resize(tab, cols, rows)
+    if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols < 1 || rows < 1) return
+    this.sized.add(tab)
+    if (this.termSize?.cols === cols && this.termSize.rows === rows) return
+    this.termSize = { cols, rows }
+    this.deps.onPersist()
   }
 
   attach(tab: string): { data: string; seq: number } {
@@ -197,7 +208,8 @@ export class Controller {
       tabs: this.store.records(),
       layout: this.layout,
       activeTab: this.activeTab,
-      sidebar: this.sidebar
+      sidebar: this.sidebar,
+      ...(this.termSize ? { termSize: this.termSize } : {})
     }
   }
 
@@ -243,6 +255,8 @@ export class Controller {
       this.fail(tab, `Оболочка не найдена: ${spec.file}`, actions)
       return
     }
+    // вкладку ещё не показывали: пусть стартует в размере последнего терминала, а не 120×30
+    if (!this.sized.has(tab) && this.termSize) this.pty.resize(tab, this.termSize.cols, this.termSize.rows)
     try {
       this.pty.spawn(tab, { ...spec, file })
     } catch (err) {

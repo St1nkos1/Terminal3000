@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { dirname } from 'node:path'
 import { layoutTabs, normalizeLayout, pane } from '../shared/layout'
 import { folderName } from '../shared/text'
-import type { SidebarState, TabRecord, Workspace } from '../shared/types'
+import type { SidebarState, TabRecord, TermSize, Workspace } from '../shared/types'
 
 export function stripBom(s: string): string {
   return s.charCodeAt(0) === 0xfeff ? s.slice(1) : s
@@ -94,7 +94,15 @@ export function parseWorkspace(raw: unknown): Workspace | null {
       ? o.activeTab
       : (layoutTabs(layout)[0] ?? tabs[0]?.id ?? null)
   if (!layout && activeTab) layout = pane(activeTab)
-  return { version: 1, tabs, layout, activeTab, sidebar: parseSidebar(o.sidebar) }
+  const termSize = parseTermSize(o.termSize)
+  return { version: 1, tabs, layout, activeTab, sidebar: parseSidebar(o.sidebar), ...(termSize ? { termSize } : {}) }
+}
+
+export function parseTermSize(raw: unknown): TermSize | null {
+  if (!raw || typeof raw !== 'object') return null
+  const { cols, rows } = raw as Record<string, unknown>
+  const ok = (v: unknown, max: number): v is number => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= max
+  return ok(cols, 1000) && ok(rows, 500) ? { cols, rows } : null
 }
 
 export function loadWorkspace(

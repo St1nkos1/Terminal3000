@@ -48,12 +48,20 @@ export interface SidebarState {
 
 export const EMPTY_SIDEBAR: SidebarState = { collapsed: false, collapsedGroups: [] }
 
+// Размер терминала в символах
+export interface TermSize {
+  cols: number
+  rows: number
+}
+
 export interface Workspace {
   version: 1
   tabs: TabRecord[]
   layout: LayoutNode | null
   activeTab: string | null
   sidebar: SidebarState
+  // последний размер терминала: с ним стартуют вкладки, которые ещё не показаны
+  termSize?: TermSize
 }
 
 export interface ViewState {
