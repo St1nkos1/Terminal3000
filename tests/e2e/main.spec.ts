@@ -156,3 +156,25 @@ test('режим --t3000-hook отправляет событие и выход�
     await server.close()
   }
 })
+
+test('выход из Windows: workspace.json записан сразу, поздние изменения его не портят', async () => {
+  const dirs = makeDirs()
+  writeTestConfig(dirs.data)
+  const app = await launchApp(dirs, [dirs.project])
+  try {
+    const page = await app.firstWindow()
+    const { tabs } = await tabsOf(page)
+    const id = tabs[0].id
+    // при выходе из Windows before-quit не приходит, только session-end у окна
+    await app.evaluate(({ BrowserWindow }) => {
+      BrowserWindow.getAllWindows()[0].emit('session-end', {})
+    })
+    // пока Windows закрывает процессы, вкладки ещё меняются (поздние SessionEnd от claude и т. п.)
+    await page.evaluate((tab) => (window as unknown as Win).t3000.closeTab(tab), id)
+    await page.waitForTimeout(1200)
+    const saved = JSON.parse(readFileSync(join(dirs.data, 'workspace.json'), 'utf8'))
+    expect(saved.tabs.map((t: { id: string }) => t.id)).toEqual([id])
+  } finally {
+    await app.close()
+  }
+})

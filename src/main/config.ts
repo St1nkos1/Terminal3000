@@ -153,13 +153,32 @@ export function loadConfig(
   try {
     raw = readJson(file)
   } catch (e) {
-    const broken = quarantine(file, now)
-    writeDefaults(file)
-    return {
-      config: structuredClone(DEFAULT_CONFIG),
-      errors: [`config.json был повреждён (${(e as Error).message}), сохранён как ${broken}, созданы настройки по умолчанию`],
-      broken
+    const message = (e as Error).message
+    // файл занят или недоступен — это не повреждение, его не трогаем
+    if (!(e instanceof SyntaxError)) {
+      return {
+        config: structuredClone(DEFAULT_CONFIG),
+        errors: [`config.json: не удалось прочитать файл (${message}), взяты настройки по умолчанию`],
+        broken: null
+      }
     }
+    let broken: string
+    try {
+      broken = quarantine(file, now)
+    } catch (q) {
+      return {
+        config: structuredClone(DEFAULT_CONFIG),
+        errors: [`config.json повреждён (${message}) и не переименован (${(q as Error).message}), взяты настройки по умолчанию`],
+        broken: null
+      }
+    }
+    const errors = [`config.json был повреждён (${message}), сохранён как ${broken}, созданы настройки по умолчанию`]
+    try {
+      writeDefaults(file)
+    } catch (w) {
+      errors.push(`config.json: не удалось создать файл (${(w as Error).message})`)
+    }
+    return { config: structuredClone(DEFAULT_CONFIG), errors, broken }
   }
   return { ...validateConfig(raw), broken: null }
 }

@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -160,5 +160,34 @@ describe('reloadConfig и watchConfig', () => {
     writeFileSync(f, '{"scrollback": 500}')
     await vi.waitFor(() => expect(current.scrollback).toBe(500), { timeout: 3000 })
     expect(onChange.mock.lastCall![0].errors).toEqual([])
+  })
+})
+
+describe('loadConfig: сбои файловой системы', () => {
+  const now = new Date(2026, 8, 30, 12, 0, 0)
+
+  it('файл не читается (не ошибка JSON) — без карантина, настройки по умолчанию', () => {
+    const file = join(dir, 'config.json')
+    // чтение каталога даёт EISDIR — так же ведёт себя файл, занятый антивирусом или без прав
+    mkdirSync(file)
+    const r = loadConfig(file, now)
+    expect(r.config).toEqual(DEFAULT_CONFIG)
+    expect(r.broken).toBeNull()
+    expect(r.errors).toHaveLength(1)
+    expect(r.errors[0]).toContain('не удалось прочитать')
+    expect(statSync(file).isDirectory()).toBe(true)
+    expect(readdirSync(dir)).toEqual(['config.json'])
+  })
+
+  it('битый JSON, но переименовать не вышло — запуск не падает, файл не тронут', () => {
+    const file = join(dir, 'config.json')
+    writeFileSync(file, '{ oops')
+    // каталог с именем карантина: rename в него не пройдёт
+    mkdirSync(`${file}.broken-20260930-120000`)
+    const r = loadConfig(file, now)
+    expect(r.config).toEqual(DEFAULT_CONFIG)
+    expect(r.broken).toBeNull()
+    expect(r.errors[0]).toContain('повреждён')
+    expect(readFileSync(file, 'utf8')).toBe('{ oops')
   })
 })

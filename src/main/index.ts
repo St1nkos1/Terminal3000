@@ -78,7 +78,14 @@ function main(): void {
   app.setAppUserModelId(app.isPackaged ? 'com.st1nkos.terminal3000' : process.execPath)
   // без меню: иначе Ctrl+R у Claude перезагрузит окно
   Menu.setApplicationMenu(null)
-  void app.whenReady().then(start)
+  void app
+    .whenReady()
+    .then(start)
+    .catch((e: unknown) => {
+      // без окна процесс держал бы блокировку экземпляра, и приложение больше не запускалось бы
+      dialog.showErrorBox('Terminal3000 не запустился', e instanceof Error ? e.message : String(e))
+      app.exit(1)
+    })
 }
 
 async function start(): Promise<void> {
@@ -362,7 +369,7 @@ async function start(): Promise<void> {
     if (f) openFolder(f)
   })
   app.on('window-all-closed', () => app.quit())
-  app.on('before-quit', () => {
+  const beginQuit = (): void => {
     if (quitting) return
     quitting = true
     clearInterval(silenceTimer)
@@ -372,7 +379,8 @@ async function start(): Promise<void> {
     controller.shutdown()
     void server.close()
     log.info('выход')
-  })
+  }
+  app.on('before-quit', beginQuit)
 
   const createWindow = (): void => {
     const w = new BrowserWindow({
@@ -401,6 +409,8 @@ async function start(): Promise<void> {
       refreshHooks()
     })
     w.on('blur', () => controller.setWindowFocused(false))
+    // при выходе из Windows и перезагрузке before-quit не приходит
+    w.on('session-end', beginQuit)
     w.on('closed', () => {
       win = null
     })

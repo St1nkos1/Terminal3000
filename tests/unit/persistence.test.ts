@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -144,5 +144,24 @@ describe('persistence', () => {
     }, onError)
     saver.flush()
     expect(onError).toHaveBeenCalledOnce()
+  })
+})
+
+describe('loadWorkspace: сбои файловой системы', () => {
+  const now = new Date(2026, 8, 30, 12, 0, 0)
+
+  it('файл не читается (не ошибка JSON) — без карантина и без вкладок', () => {
+    const f = join(dir, 'workspace.json')
+    mkdirSync(f)
+    expect(loadWorkspace(f, now)).toEqual({ workspace: null, broken: null })
+    expect(statSync(f).isDirectory()).toBe(true)
+  })
+
+  it('битый файл, но переименовать не вышло — без исключения', () => {
+    const f = join(dir, 'workspace.json')
+    writeFileSync(f, '{ oops')
+    mkdirSync(`${f}.broken-20260930-120000`)
+    expect(loadWorkspace(f, now)).toEqual({ workspace: null, broken: null })
+    expect(readFileSync(f, 'utf8')).toBe('{ oops')
   })
 })

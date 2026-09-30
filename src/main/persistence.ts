@@ -105,11 +105,18 @@ export function loadWorkspace(
   let workspace: Workspace | null
   try {
     workspace = parseWorkspace(readJson(file))
-  } catch {
+  } catch (e) {
+    // файл занят или недоступен — это не повреждение, его не трогаем
+    if (!(e instanceof SyntaxError)) return { workspace: null, broken: null }
     workspace = null
   }
   if (workspace) return { workspace, broken: null }
-  return { workspace: null, broken: quarantine(file, now) }
+  try {
+    return { workspace: null, broken: quarantine(file, now) }
+  } catch {
+    // переименовать не вышло: запуск важнее, файл перезапишется при сохранении
+    return { workspace: null, broken: null }
+  }
 }
 
 export function saveWorkspaceSync(file: string, ws: Workspace): void {
