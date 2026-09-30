@@ -1,4 +1,14 @@
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -20,6 +30,19 @@ const entry = (cmd: HookCommand) => ({ type: 'command', command: cmd.command, ar
 const foreign = { type: 'command', command: 'powershell -c "[console]::beep()"' }
 
 type Obj = Record<string, unknown>
+// файловые симлинки в Windows требуют режима разработчика или прав администратора
+function canSymlink(): boolean {
+  const d = mkdtempSync(join(tmpdir(), 't3000-ln-'))
+  try {
+    writeFileSync(join(d, 'a'), '')
+    symlinkSync(join(d, 'a'), join(d, 'b'), 'file')
+    return true
+  } catch {
+    return false
+  } finally {
+    rmSync(d, { recursive: true, force: true })
+  }
+}
 const hooksOf = (s: Obj) => s.hooks as Record<string, Array<{ matcher?: string; hooks: unknown[] }>>
 
 describe('чистые функции', () => {
@@ -97,6 +120,21 @@ describe('чистые функции', () => {
     hooksOf(withMatcher).Notification[0].matcher = 'permission_prompt'
     expect(inspect(withMatcher, NODE_CMD)).toBe('outdated')
   })
+
+  it('inspect: хуки другой копии Terminal3000, чей файл на месте, — рабочие', () => {
+    // копия из исходников и установленная сборка на одной машине: порт и токен хук берёт из окружения
+    const other = applyInstall({}, MOVED_CMD)
+    expect(inspect(other, NODE_CMD, (p) => p === 'D:/Terminal3000/hooks/t3000-hook.js')).toBe('installed')
+    // файла другой копии больше нет — путь устарел
+    expect(inspect(other, NODE_CMD, () => false)).toBe('outdated')
+    // запасной exe другой копии
+    const exe = applyInstall({}, { command: 'D:\\T\\Terminal3000.exe', args: ['--t3000-hook'] })
+    expect(inspect(exe, NODE_CMD, (p) => p === 'D:\\T\\Terminal3000.exe')).toBe('installed')
+    // запись другой формы (без async) рабочей не считается
+    const odd = structuredClone(other)
+    for (const groups of Object.values(hooksOf(odd))) delete (groups[0].hooks[0] as Obj).async
+    expect(inspect(odd, NODE_CMD, () => true)).toBe('outdated')
+  })
 })
 
 describe('HookInstaller', () => {
@@ -110,6 +148,32 @@ describe('HookInstaller', () => {
   afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
   const backups = () => readdirSync(dir).filter((f) => f.includes('.bak-')).sort()
+
+  it('settings.json — ссылка (dotfiles): пишем в настоящий файл, копия — рядом со ссылкой', () => {
+    // без прав на симлинки подменяем разрешение пути: link.json «указывает» на real/settings.json
+    const real = join(dir, 'real')
+    mkdirSync(real)
+    const target = join(real, 'settings.json')
+    writeFileSync(file, '{ "model": "opus" }\n')
+    writeFileSync(target, '{ "model": "opus" }\n')
+    const inst = new HookInstaller(file, NODE_CMD, now, (p) => (p === file ? target : p))
+    expect(inst.install()).toEqual({ state: 'installed' })
+    expect(inspect(JSON.parse(readFileSync(target, 'utf8')), NODE_CMD)).toBe('installed')
+    // сама «ссылка» не заменена обычным файлом с новым содержимым
+    expect(readFileSync(file, 'utf8')).toBe('{ "model": "opus" }\n')
+    expect(backups()).toEqual(['settings.json.bak-20260928-090000'])
+  })
+
+  it.runIf(canSymlink())('настоящий симлинк на settings.json остаётся симлинком', () => {
+    const real = join(dir, 'real')
+    mkdirSync(real)
+    const target = join(real, 'settings.json')
+    writeFileSync(target, '{}\n')
+    symlinkSync(target, file, 'file')
+    new HookInstaller(file, NODE_CMD, now).install()
+    expect(lstatSync(file).isSymbolicLink()).toBe(true)
+    expect(inspect(JSON.parse(readFileSync(target, 'utf8')), NODE_CMD)).toBe('installed')
+  })
 
   it('нет файла: missing → установка создаёт файл без копии', () => {
     const inst = new HookInstaller(file, NODE_CMD, now)

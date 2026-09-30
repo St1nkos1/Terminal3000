@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { constants, copyFileSync, existsSync, readFileSync } from 'node:fs'
+import { constants, copyFileSync, existsSync, readFileSync, realpathSync } from 'node:fs'
 import type { HooksState } from '../shared/types'
 import { stamp, stripBom, writeFileAtomic } from './persistence'
 
@@ -93,7 +93,26 @@ function sameEntry(h: Obj, cmd: HookCommand): boolean {
   )
 }
 
-export function inspect(settings: Obj, cmd: HookCommand): 'installed' | 'missing' | 'outdated' {
+// Путь, который запускает хук: скрипт для node или сам exe в запасном варианте
+function hookTarget(h: Obj): string | null {
+  if (typeof h.command !== 'string' || !Array.isArray(h.args)) return null
+  if (h.command === 'node') return typeof h.args[0] === 'string' ? h.args[0] : null
+  return h.args.includes('--t3000-hook') ? h.command : null
+}
+
+// Хук этой копии или другой копии Terminal3000 (из исходников или установленной), чей файл на месте:
+// порт и токен хук берёт из окружения вкладки, так что работает любой
+function workingEntry(h: Obj, cmd: HookCommand, exists: (p: string) => boolean): boolean {
+  if (sameEntry(h, cmd)) return true
+  const target = hookTarget(h)
+  return target !== null && sameEntry(h, { command: h.command as string, args: h.args as string[] }) && exists(target)
+}
+
+export function inspect(
+  settings: Obj,
+  cmd: HookCommand,
+  exists: (p: string) => boolean = existsSync
+): 'installed' | 'missing' | 'outdated' {
   const hooks = isObj(settings.hooks) ? settings.hooks : {}
   let ours = 0
   let good = 0
@@ -105,7 +124,7 @@ export function inspect(settings: Obj, cmd: HookCommand): 'installed' | 'missing
         if (!isOurHook(h)) continue
         ours++
         const plainGroup = g.matcher === undefined || g.matcher === ''
-        if (plainGroup && (HOOK_EVENTS as readonly string[]).includes(event) && sameEntry(h as Obj, cmd)) good++
+        if (plainGroup && (HOOK_EVENTS as readonly string[]).includes(event) && workingEntry(h as Obj, cmd, exists)) good++
       }
     }
   }
@@ -129,11 +148,21 @@ function structureProblem(raw: unknown): string | null {
 
 type ReadResult = { settings: Obj; text: string | null } | { error: string }
 
+function resolveLink(p: string): string {
+  try {
+    return realpathSync(p)
+  } catch {
+    return p
+  }
+}
+
 export class HookInstaller {
   constructor(
     private readonly settingsPath: string,
     private readonly cmd: HookCommand,
-    private readonly now: () => Date = () => new Date()
+    private readonly now: () => Date = () => new Date(),
+    // settings.json может быть ссылкой (dotfiles): пишем в файл, на который она указывает
+    private readonly resolve: (p: string) => string = resolveLink
   ) {}
 
   status(): HooksState {
@@ -158,7 +187,7 @@ export class HookInstaller {
     if (!existsSync(this.settingsPath)) return { settings: {}, text: null }
     let text: string
     try {
-      text = readFileSync(this.settingsPath, 'utf8')
+      text = readFileSync(this.resolve(this.settingsPath), 'utf8')
     } catch (e) {
       return { error: (e as Error).message }
     }
@@ -183,8 +212,10 @@ export class HookInstaller {
     if (r.text === null && Object.keys(next).length === 0) return state
     if (r.text !== null && r.text === out) return state
     try {
-      if (r.text !== null) copyFileSync(this.settingsPath, this.backupPath(), constants.COPYFILE_EXCL)
-      writeFileAtomic(this.settingsPath, out)
+      const target = this.resolve(this.settingsPath)
+      if (r.text !== null) copyFileSync(target, this.backupPath(), constants.COPYFILE_EXCL)
+      // rename поверх ссылки заменил бы её обычным файлом
+      writeFileAtomic(target, out)
     } catch (e) {
       return this.broken(`не удалось записать файл: ${(e as Error).message}`)
     }
