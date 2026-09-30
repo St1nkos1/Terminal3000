@@ -3,7 +3,7 @@ import type { TabNote } from '../../shared/types'
 import { useApp } from '../context'
 import { useStore } from '../store'
 import { SearchBar } from './SearchBar'
-import { formatDuration, paneTitle, showsDuration, STATUS_ICON, STATUS_LABEL } from '../tab-order'
+import { formatDuration, paneTitle, showsDuration, STATUS_ICON, statusText } from '../tab-order'
 
 function NoteBar({ tab, note }: { tab: string; note: TabNote }) {
   const { actions } = useApp()
@@ -34,6 +34,7 @@ export function TerminalPane({ tab }: { tab: string }) {
   const info = useStore(store, (s) => s.app.tabs.find((t) => t.id === tab))
   const active = useStore(store, (s) => s.view.activeTab === tab)
   const now = useStore(store, (s) => s.now)
+  const hooksInstalled = useStore(store, (s) => s.app.hooks.state === 'installed')
   const searching = useStore(store, (s) => s.search === tab)
   const host = useRef<HTMLDivElement>(null)
 
@@ -55,7 +56,7 @@ export function TerminalPane({ tab }: { tab: string }) {
         <div className={`pane-header status-${info.status}`}>
           <span className="pane-title">{paneTitle(info)}</span>
           <span className="status">
-            {STATUS_ICON[info.status]} {STATUS_LABEL[info.status]}
+            {STATUS_ICON[info.status]} {statusText(info, hooksInstalled, now)}
             {showsDuration(info.status) ? ` ${formatDuration(now - info.statusSince)}` : ''}
           </span>
         </div>

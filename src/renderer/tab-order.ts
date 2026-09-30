@@ -129,3 +129,12 @@ export function consoleStep(tabs: TabInfo[], layout: LayoutNode | null, activeTa
   if (shown.has(shellTab.id)) return { type: 'hide', tab: shellTab.id, back: active.id }
   return { type: 'show', tab: shellTab.id }
 }
+
+// Сколько ждать первого хука, прежде чем считать, что статусов у вкладки не будет
+export const NO_HOOKS_AFTER_MS = 30_000
+
+// Без хуков Claude-вкладка навсегда осталась бы «запуск»: хуки не стоят или сессия запущена до их установки
+export function statusText(t: TabInfo, hooksInstalled: boolean, now: number): string {
+  if (t.status === 'starting' && (!hooksInstalled || now - t.statusSince > NO_HOOKS_AFTER_MS)) return 'без статусов'
+  return STATUS_LABEL[t.status]
+}

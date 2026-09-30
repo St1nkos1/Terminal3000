@@ -7,6 +7,7 @@ import {
   showsDuration,
   STATUS_ICON,
   STATUS_LABEL,
+  statusText,
   tabLabel,
   touchMru
 } from '../../src/renderer/tab-order'
@@ -68,5 +69,18 @@ describe('tab-order', () => {
     expect(formatDuration(125_000)).toBe('2м')
     expect(formatDuration(3 * 3600_000 + 5)).toBe('3ч')
     expect(formatDuration(49 * 3600_000)).toBe('2д')
+  })
+})
+
+describe('statusText', () => {
+  it('Claude-вкладка без хуков не висит в «запуск»', () => {
+    const starting = makeTab('a', 'C:/p', { kind: 'claude', status: 'starting', statusSince: 0 })
+    // хуки не стоят или повреждены — статусов не будет
+    expect(statusText(starting, false, 1000)).toBe('без статусов')
+    // хуки стоят: обычный запуск, пока не прошло 30 с
+    expect(statusText(starting, true, 10_000)).toBe('запуск')
+    // сессия запущена до установки хуков и не присылает событий
+    expect(statusText(starting, true, 31_000)).toBe('без статусов')
+    expect(statusText(makeTab('b', 'C:/p', { kind: 'claude', status: 'idle' }), false, 99_000)).toBe('свободна')
   })
 })

@@ -3,12 +3,32 @@ import { layoutTabs } from '../../shared/layout'
 import type { TabInfo } from '../../shared/types'
 import { useApp } from '../context'
 import { useStore } from '../store'
-import { formatDuration, groupTabs, paneTitle, showsDuration, STATUS_ICON, STATUS_LABEL, tabLabel } from '../tab-order'
+import {
+  formatDuration,
+  groupTabs,
+  paneTitle,
+  showsDuration,
+  STATUS_ICON,
+  statusText,
+  tabLabel
+} from '../tab-order'
 
-function TabRow({ tab, active, shown, now }: { tab: TabInfo; active: boolean; shown: boolean; now: number }) {
+function TabRow({
+  tab,
+  active,
+  shown,
+  now,
+  hooksInstalled
+}: {
+  tab: TabInfo
+  active: boolean
+  shown: boolean
+  now: number
+  hooksInstalled: boolean
+}) {
   const { actions } = useApp()
   // у обычной консоли текст статуса не нужен, хватает иконки
-  const state = tab.status === 'shell' ? '' : STATUS_LABEL[tab.status]
+  const state = tab.status === 'shell' ? '' : statusText(tab, hooksInstalled, now)
   const time = showsDuration(tab.status) ? ` ${formatDuration(now - tab.statusSince)}` : ''
   return (
     <button
@@ -34,6 +54,7 @@ export function Sidebar() {
   const activeTab = useStore(store, (s) => s.view.activeTab)
   const layout = useStore(store, (s) => s.view.layout)
   const now = useStore(store, (s) => s.now)
+  const hooksInstalled = useStore(store, (s) => s.app.hooks.state === 'installed')
   const newTabKey = useStore(store, (s) => s.config.keybindings.newTab)
   const groups = useMemo(() => groupTabs(tabs), [tabs])
   const shown = useMemo(() => new Set(layoutTabs(layout)), [layout])
@@ -49,7 +70,7 @@ export function Sidebar() {
             <button
               key={t.id}
               className={`mini status-${t.status}${t.id === activeTab ? ' active' : ''}`}
-              title={`${paneTitle(t)} — ${STATUS_LABEL[t.status]}`}
+              title={`${paneTitle(t)} — ${statusText(t, hooksInstalled, now)}`}
               onClick={() => actions.activate(t.id)}
             >
               {STATUS_ICON[t.status]}
@@ -81,7 +102,14 @@ export function Sidebar() {
               </button>
               {!collapsed &&
                 g.tabs.map((t) => (
-                  <TabRow key={t.id} tab={t} active={t.id === activeTab} shown={shown.has(t.id)} now={now} />
+                  <TabRow
+                    key={t.id}
+                    tab={t}
+                    active={t.id === activeTab}
+                    shown={shown.has(t.id)}
+                    now={now}
+                    hooksInstalled={hooksInstalled}
+                  />
                 ))}
             </section>
           )
