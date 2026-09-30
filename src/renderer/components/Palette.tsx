@@ -16,6 +16,7 @@ function PalettePage({ mode, projects }: { mode: PaletteMode; projects: Project[
   const config = useStore(store, (s) => s.config)
   const view = useStore(store, (s) => s.view)
   const now = useStore(store, (s) => s.now)
+  const homeDir = useStore(store, (s) => s.homeDir)
   const [query, setQuery] = useState('')
   const [index, setIndex] = useState(0)
 
@@ -28,7 +29,8 @@ function PalettePage({ mode, projects }: { mode: PaletteMode; projects: Project[
     sidebarCollapsed: view.sidebar.collapsed,
     activeTab: view.activeTab,
     layoutTabs: layoutTabs(view.layout),
-    now
+    now,
+    homeDir
   }
   const items = fuzzyFilter(pageItems(mode, data), query, (i) => `${i.label} ${i.detail}`).slice(0, MAX_ITEMS)
   const current = Math.min(index, Math.max(0, items.length - 1))

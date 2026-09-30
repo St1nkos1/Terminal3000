@@ -42,6 +42,7 @@ function data(extra: Partial<PaletteData> = {}): PaletteData {
     activeTab: null,
     layoutTabs: [],
     now: NOW,
+    homeDir: 'C:\\Users\\u',
     ...extra
   }
 }
@@ -82,17 +83,28 @@ describe('palette-pages', () => {
     expect(label(data({ sidebarCollapsed: true }), 'cmd:toggle-sidebar')).toBe('Развернуть панель')
   })
 
-  it('новая вкладка: «Выбрать папку…» первым, проект активной вкладки следом, папки вкладок тоже', () => {
+  it('новая вкладка: консоль в домашней папке, «Выбрать папку…», проект активной вкладки, папки вкладок', () => {
     const tabs = [makeTab('t1', 'C:\\Work\\Data'), makeTab('t2', 'E:\\Новая')]
     expect(keys(data({ tabs, activeTab: 't1' }), { page: 'new-tab' })).toEqual([
+      'home-console',
       'pick-folder',
       'project:c:/work/data',
       'project:c:/work/mywebshop',
       'project:e:/новая'
     ])
+    const home = pageItems({ page: 'new-tab' }, data())[0]
+    expect(home).toMatchObject({ label: 'Консоль', detail: '~ (C:\\Users\\u)' })
+    expect(home.command).toEqual({ type: 'open', req: { cwd: 'C:\\Users\\u', kind: 'shell' } })
     const split = pageItems({ page: 'new-tab', split: 'row' }, data())
-    expect(split[0].command).toEqual({ type: 'pick-folder', split: 'row' })
-    expect(split[1].command).toEqual({ type: 'page', mode: { page: 'project', cwd: 'C:\\Work\\MyWebShop', split: 'row' } })
+    expect(split[0].command).toEqual({ type: 'open', req: { cwd: 'C:\\Users\\u', kind: 'shell' }, split: 'row' })
+    expect(split[1].command).toEqual({ type: 'pick-folder', split: 'row' })
+    expect(split[2].command).toEqual({ type: 'page', mode: { page: 'project', cwd: 'C:\\Work\\MyWebShop', split: 'row' } })
+  })
+
+  it('главная палитра: команда «Новая консоль в домашней папке»', () => {
+    const item = pageItems({ page: 'root' }, data()).find((i) => i.key === 'cmd:home-console')
+    expect(item?.label).toBe('Новая консоль в домашней папке')
+    expect(item?.command).toEqual({ type: 'open', req: { cwd: 'C:\\Users\\u', kind: 'shell' } })
   })
 
   it('проект: Claude, продолжение и выбор разговора, консоли (оболочка по умолчанию первой)', () => {

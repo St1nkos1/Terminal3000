@@ -55,8 +55,13 @@ describe('команды', () => {
     expect(store.get().view.activeTab).toBe('b')
   })
 
-  it('закрытие: живую вкладку — после подтверждения, завершённую — сразу', () => {
-    const tabs = [makeTab('a', 'C:\\p'), makeTab('b', 'C:\\p', { alive: false })]
+  it('закрытие: вопрос только если Claude работает или ждёт, остальное закрывается сразу', () => {
+    const tabs = [
+      makeTab('a', 'C:\\p', { kind: 'claude', status: 'working' }),
+      makeTab('b', 'C:\\p'),
+      makeTab('c', 'C:\\p', { kind: 'claude', status: 'idle' }),
+      makeTab('d', 'C:\\p', { kind: 'claude', status: 'waiting' })
+    ]
     const { store, actions, calls } = setupActions(tabs, { layout: pane('a'), activeTab: 'a' })
     actions.run('closeTab')
     expect(store.get().overlay).toEqual({ type: 'confirm-close', tab: 'a' })
@@ -64,8 +69,12 @@ describe('команды', () => {
     actions.confirmClose('a')
     expect(calls.closeTab).toEqual(['a'])
     expect(store.get().overlay).toBeNull()
+    // живая консоль и свободный Claude — без вопроса
     actions.requestClose('b')
-    expect(calls.closeTab).toEqual(['a', 'b'])
+    actions.requestClose('c')
+    expect(calls.closeTab).toEqual(['a', 'b', 'c'])
+    actions.requestClose('d')
+    expect(store.get().overlay).toEqual({ type: 'confirm-close', tab: 'd' })
   })
 
   it('переименование: пробелы по краям обрезаются, диалог закрывается', () => {

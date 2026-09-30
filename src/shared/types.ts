@@ -219,4 +219,6 @@ export interface InitData {
   config: AppConfig
   view: ViewState
   osBuild: number
+  // домашняя папка пользователя: там открывается консоль «вне проектов»
+  homeDir: string
 }

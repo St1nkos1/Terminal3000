@@ -14,6 +14,7 @@ export interface UiState {
   config: AppConfig
   view: ViewState
   osBuild: number
+  homeDir: string
   // последние использованные вкладки, текущая первой
   mru: string[]
   // Ctrl+Tab, пока зажат Ctrl
@@ -65,6 +66,7 @@ export function initialUiState(init: InitData, now: number): UiState {
     config: init.config,
     view: init.view,
     osBuild: init.osBuild,
+    homeDir: init.homeDir,
     mru: init.view.activeTab ? [init.view.activeTab] : [],
     mruCycle: null,
     now,

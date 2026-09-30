@@ -51,6 +51,7 @@ export interface PaletteData {
   activeTab: string | null
   layoutTabs: string[]
   now: number
+  homeDir: string
 }
 
 // Сколько прошлых разговоров показывать на главной странице
@@ -124,6 +125,17 @@ function orderedTabs(d: PaletteData): TabInfo[] {
   return panelOrder(d.tabs).flatMap((id) => byId.get(id) ?? [])
 }
 
+// Консоль «вне проектов» — в домашней папке пользователя
+function homeConsole(d: PaletteData, key: string, label: string, split?: SplitDir): PaletteItem {
+  return {
+    key,
+    label,
+    detail: `~ (${d.homeDir})`,
+    hint: d.config.defaultShell,
+    command: { type: 'open', req: { cwd: d.homeDir, kind: 'shell' }, ...withSplit(split) }
+  }
+}
+
 function commandItems(d: PaletteData): PaletteItem[] {
   const kb = d.config.keybindings
   const item = (key: string, label: string, hint: string, command: PaletteCommand): PaletteItem => ({
@@ -161,6 +173,7 @@ function commandItems(d: PaletteData): PaletteItem[] {
   }
   return [
     item('newTab', 'Новая вкладка…', kb.newTab, { type: 'page', mode: { page: 'new-tab' } }),
+    { ...homeConsole(d, 'cmd:home-console', 'Новая консоль в домашней папке'), detail: 'команда' },
     ...forTab,
     action('nextAttention', 'Следующая вкладка, которая ждёт или готова'),
     action('doNotDisturb', d.doNotDisturb ? 'Не беспокоить: выключить' : 'Не беспокоить: включить'),
@@ -193,6 +206,7 @@ function newTabItems(d: PaletteData, split?: SplitDir): PaletteItem[] {
     projects.sort((a, b) => first(b) - first(a))
   }
   return [
+    homeConsole(d, 'home-console', 'Консоль', split),
     {
       key: 'pick-folder',
       label: 'Выбрать папку…',

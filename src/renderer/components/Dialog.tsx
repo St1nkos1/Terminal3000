@@ -61,7 +61,7 @@ export function ConfirmClose({ tab }: { tab: string }) {
         }}
       >
         <div className="dialog-title">Закрыть вкладку?</div>
-        <p>В «{paneTitle(info)}» ещё работает процесс. Он будет завершён.</p>
+        <p>Claude ещё работает в «{paneTitle(info)}». Если закрыть вкладку, текущее действие прервётся.</p>
         <div className="dialog-buttons">
           <button autoFocus className="btn danger" onClick={() => actions.confirmClose(tab)}>
             Закрыть

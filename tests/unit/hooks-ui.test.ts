@@ -14,7 +14,8 @@ function hookItems(hooks: HooksState) {
     sidebarCollapsed: false,
     activeTab: null,
     layoutTabs: [],
-    now: 0
+    now: 0,
+    homeDir: 'C:\\Users\\u'
   }
   return pageItems({ page: 'root' }, d)
     .filter((i) => i.key.endsWith('-hooks'))

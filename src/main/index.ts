@@ -266,7 +266,7 @@ async function start(): Promise<void> {
   }
   const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
 
-  handle(IPC.getInit, (): InitData => ({ state: appState(), config, view: controller.view(), osBuild }))
+  handle(IPC.getInit, (): InitData => ({ state: appState(), config, view: controller.view(), osBuild, homeDir: homedir() }))
   handle(IPC.attach, (tab) => (isTabId(tab) ? controller.attach(tab) : { data: '', seq: 0 }))
   on(IPC.input, (tab, data) => {
     if (isTabId(tab) && typeof data === 'string') controller.input(tab, data)

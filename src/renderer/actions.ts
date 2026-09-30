@@ -1,3 +1,4 @@
+import { isBusyClaude } from '../shared/busy'
 import type { T3000Api } from '../shared/ipc'
 import { layoutTabs, removeTab, setSizes } from '../shared/layout'
 import type { ActionId, AppConfig, AppState, BannerCommand, NewTabRequest, SplitDir, ViewState } from '../shared/types'
@@ -207,7 +208,8 @@ export function createActions(d: ActionDeps) {
   function requestClose(tab: string): void {
     const info = store.get().app.tabs.find((t) => t.id === tab)
     if (!info) return
-    if (info.alive) store.set({ overlay: { type: 'confirm-close', tab } })
+    // консоль и свободный Claude закрываются сразу, вопрос — только если Claude работает или ждёт
+    if (isBusyClaude(info)) store.set({ overlay: { type: 'confirm-close', tab } })
     else closeTab(tab)
   }
 

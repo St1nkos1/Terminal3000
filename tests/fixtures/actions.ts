@@ -37,7 +37,8 @@ export function setupActions(tabs: TabInfo[], view: Partial<ViewState> = {}, opt
     state: appState(tabs, opts.app),
     config: structuredClone(DEFAULT_CONFIG),
     view: { layout: null, activeTab: null, sidebar: EMPTY_SIDEBAR, visibleTabs: [], ...view },
-    osBuild: 26200
+    osBuild: 26200,
+    homeDir: 'C:\\Users\\u'
   }
   const store = createStore<UiState>(initialUiState(init, 0))
   let nextTab: TabInfo | null = null

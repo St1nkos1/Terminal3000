@@ -523,3 +523,43 @@ button {
 .banner-close:hover {
   color: var(--text);
 }
+
+/* Закрытие вкладки: крестик на строке виден при наведении и у активной вкладки */
+.tab-row {
+  cursor: pointer;
+}
+
+.tab-close {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 18px;
+  opacity: 0;
+}
+
+.tab-row:hover .tab-close,
+.tab-row.active .tab-close,
+.tab-row:focus-within .tab-close {
+  opacity: 1;
+}
+
+.tab-close:hover,
+.pane-close:hover {
+  color: var(--text);
+  background: #45454b;
+}
+
+.pane-header .status {
+  margin-left: auto;
+}
+
+.pane-close {
+  flex: none;
+  padding: 0 4px;
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 11px;
+}

@@ -1,5 +1,38 @@
 import { expect, test } from '@playwright/test'
+import { homedir } from 'node:os'
+import type { T3000Api } from '../../src/shared/ipc'
 import { launchApp, makeDirs, writeTestConfig } from './helpers'
+
+test('консоль в домашней папке и закрытие вкладок крестиком', async () => {
+  const dirs = makeDirs()
+  writeTestConfig(dirs.data)
+  const app = await launchApp(dirs, [dirs.project])
+  try {
+    const page = await app.firstWindow()
+    await expect(page.locator('.tab-row')).toHaveCount(1)
+    await page.locator('.pane.active .xterm-screen').click()
+    // Ctrl+Shift+T → первый пункт «Консоль» → Enter
+    await page.keyboard.press('Control+Shift+T')
+    await expect(page.locator('.palette-item').first()).toContainText('Консоль')
+    await page.keyboard.press('Enter')
+    await expect(page.locator('.tab-row')).toHaveCount(2)
+    const cwd = await page.evaluate(
+      async () => (await (window as unknown as { t3000: T3000Api }).t3000.getInit()).state.tabs[1].cwd
+    )
+    expect(cwd).toBe(homedir())
+    // крестик на строке вкладки: консоль закрывается без вопроса
+    const row = page.locator('.tab-row').nth(1)
+    await row.hover()
+    await row.locator('.tab-close').click()
+    await expect(page.locator('.tab-row')).toHaveCount(1)
+    // крестик в заголовке панели
+    await page.locator('.pane.active .pane-close').click()
+    await expect(page.locator('.tab-row')).toHaveCount(0)
+    await expect(page.locator('.empty')).toBeVisible()
+  } finally {
+    await app.close()
+  }
+})
 
 // Спека §13: консоль открывается, вывод виден, после перезапуска вкладка на месте
 test('smoke: консоль, вывод и восстановление после перезапуска', async () => {

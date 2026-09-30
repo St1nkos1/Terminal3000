@@ -30,12 +30,25 @@ function TabRow({
   // у обычной консоли текст статуса не нужен, хватает иконки
   const state = tab.status === 'shell' ? '' : statusText(tab, hooksInstalled, now)
   const time = showsDuration(tab.status) ? ` ${formatDuration(now - tab.statusSince)}` : ''
+  // строка — div: внутри неё своя кнопка закрытия, а кнопка в кнопке недопустима
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       className={`tab-row status-${tab.status}${active ? ' active' : ''}${shown ? ' shown' : ''}`}
       title={paneTitle(tab)}
       onClick={() => actions.activate(tab.id)}
       onDoubleClick={() => actions.startRename(tab.id)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') actions.activate(tab.id)
+      }}
+      // средняя кнопка мыши закрывает вкладку, как в браузере
+      onMouseDown={(e) => {
+        if (e.button === 1) e.preventDefault()
+      }}
+      onAuxClick={(e) => {
+        if (e.button === 1) actions.requestClose(tab.id)
+      }}
     >
       <span className="icon">{STATUS_ICON[tab.status]}</span>
       <span className="label">{tabLabel(tab)}</span>
@@ -43,7 +56,18 @@ function TabRow({
         {state}
         {time}
       </span>
-    </button>
+      <button
+        className="tab-close"
+        title="Закрыть вкладку"
+        onClick={(e) => {
+          e.stopPropagation()
+          actions.requestClose(tab.id)
+        }}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        ✕
+      </button>
+    </div>
   )
 }
 
@@ -72,6 +96,9 @@ export function Sidebar() {
               className={`mini status-${t.status}${t.id === activeTab ? ' active' : ''}`}
               title={`${paneTitle(t)} — ${statusText(t, hooksInstalled, now)}`}
               onClick={() => actions.activate(t.id)}
+              onAuxClick={(e) => {
+                if (e.button === 1) actions.requestClose(t.id)
+              }}
             >
               {STATUS_ICON[t.status]}
             </button>

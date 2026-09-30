@@ -36,6 +36,7 @@ export function TerminalPane({ tab }: { tab: string }) {
   const now = useStore(store, (s) => s.now)
   const hooksInstalled = useStore(store, (s) => s.app.hooks.state === 'installed')
   const searching = useStore(store, (s) => s.search === tab)
+  const closeKey = useStore(store, (s) => s.config.keybindings.closeTab)
   const host = useRef<HTMLDivElement>(null)
 
   // элемент терминала переносится в эту панель и уносится при размонтировании, сам терминал живёт дальше
@@ -59,6 +60,15 @@ export function TerminalPane({ tab }: { tab: string }) {
             {STATUS_ICON[info.status]} {statusText(info, hooksInstalled, now)}
             {showsDuration(info.status) ? ` ${formatDuration(now - info.statusSince)}` : ''}
           </span>
+          <button
+            className="pane-close"
+            title={closeKey ? `Закрыть вкладку (${closeKey})` : 'Закрыть вкладку'}
+            // mousedown не должен уходить в панель: она заберёт фокус в терминал
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => actions.requestClose(tab)}
+          >
+            ✕
+          </button>
         </div>
       )}
       {info?.note && <NoteBar tab={tab} note={info.note} />}
