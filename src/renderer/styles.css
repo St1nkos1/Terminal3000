@@ -514,3 +514,12 @@ button {
   opacity: 0.5;
   cursor: default;
 }
+
+.banner-close {
+  padding: 0 4px;
+  color: var(--muted);
+}
+
+.banner-close:hover {
+  color: var(--text);
+}

@@ -21,6 +21,15 @@ export interface ActionDeps {
   pageVisible(): boolean
 }
 
+// Баннер закрывают до конца сеанса; с другим текстом (новая ошибка) он появится снова
+export function bannerKey(b: { id: string; text: string }): string {
+  return `${b.id}|${b.text}`
+}
+
+export function visibleBanners<T extends { id: string; text: string }>(banners: T[], dismissed: readonly string[]): T[] {
+  return banners.filter((b) => !dismissed.includes(bannerKey(b)))
+}
+
 function same(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b)
 }
@@ -266,6 +275,11 @@ export function createActions(d: ActionDeps) {
     else api.openConfig()
   }
 
+  function dismissBanner(key: string): void {
+    const dismissed = store.get().dismissedBanners
+    if (!dismissed.includes(key)) store.set({ dismissedBanners: [...dismissed, key] })
+  }
+
   function run(id: ActionId): void {
     const s = store.get()
     const active = s.view.activeTab
@@ -346,7 +360,8 @@ export function createActions(d: ActionDeps) {
     uninstallHooks,
     dismissWelcome,
     welcomeInstall,
-    bannerCommand
+    bannerCommand,
+    dismissBanner
   }
 }
 

@@ -25,6 +25,8 @@ export interface UiState {
   search: string | null
   keymap: Map<string, ActionId>
   keymapErrors: string[]
+  // баннеры, закрытые до конца сеанса (bannerKey)
+  dismissedBanners: string[]
 }
 
 export interface Store<T> {
@@ -69,6 +71,7 @@ export function initialUiState(init: InitData, now: number): UiState {
     overlay: null,
     search: null,
     keymap: map,
-    keymapErrors: errors
+    keymapErrors: errors,
+    dismissedBanners: []
   }
 }
